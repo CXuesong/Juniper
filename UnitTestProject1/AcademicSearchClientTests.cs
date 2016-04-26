@@ -10,7 +10,7 @@ namespace UnitTestProject1
     public class AcademicSearchClientTests
     {
         [TestMethod]
-        public void TestMethod1()
+        public void ASClientTestMethod1()
         {
             var client = new AcademicSearchClient(Utility.AcademicSearchSubscriptionKey);
             var result = TestUtility.Await(client.EvaluateAsync("Composite(AA.AuN=='jaime teevan')", 10, 0, Utility.DebugASEvaluationAttributes));
