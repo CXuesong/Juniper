@@ -7,7 +7,7 @@
     <ProjectGuid>{1E4801AE-0383-4F49-94EA-1739D6F5D59B}</ProjectGuid>
     <OutputType>Exe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>Microsoft.Contest.Bop.Magik</RootNamespace>
+    <RootNamespace>Microsoft.Contests.Bop.Participants.Magik</RootNamespace>
     <AssemblyName>MAGIK</AssemblyName>
     <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>

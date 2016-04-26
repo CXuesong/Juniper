@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace MAGIK
+namespace Microsoft.Contests.Bop.Participants.Magik
 {
     class Program
     {
