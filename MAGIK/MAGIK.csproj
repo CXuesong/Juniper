@@ -47,13 +47,25 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AcademicSearchClient.cs" />
+    <Compile Include="AcademicSearchClient1.cs" />
+    <Compile Include="Analyzer\Graph.cs" />
+    <Compile Include="Contract\ClientError.cs" />
+    <Compile Include="ClientException.cs" />
+    <Compile Include="Contract\Author.cs" />
+    <Compile Include="Contract\ClientErrorContainer.cs" />
+    <Compile Include="Contract\Entity.cs" />
+    <Compile Include="Contract\EvaluationResult.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Utility.cs" />
+    <Compile Include="_private\Utility.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
     <None Include="packages.config" />
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

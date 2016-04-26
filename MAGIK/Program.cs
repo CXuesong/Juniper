@@ -8,8 +8,16 @@ namespace Microsoft.Contests.Bop.Participants.Magik
 {
     class Program
     {
-        static void Main(string[] args)
+
+        internal static void Main(string[] args)
         {
+            Task.WaitAll(MainAsync());
+        }
+
+        private static async Task MainAsync()
+        {
+            var client = new AcademicSearchClient(Utility.AcademicSearchSubscriptionKey);
+            var result = await client.EvaluateAsync("Composite(AA.AuN=='jaime teevan')", 10, 0, Utility.DebugASEvaluationAttributes);
         }
     }
 }
