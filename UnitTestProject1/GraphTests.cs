@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
-using Microsoft.Contests.Bop.Participants.Magik.Analyzer;
+using System.Threading.Tasks;
+using Microsoft.Contests.Bop.Participants.Magik.Analysis;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace UnitTestProject1
@@ -14,23 +15,22 @@ namespace UnitTestProject1
             var g = new Graph<int>();
             for (var i = 0; i < 10; i++)
                 g.Add(i);
-            g.Add(1, 2);
-            g.Add(2, 3);
-            //g.Add(2, 3);
-            g.Add(9, 3);
-            g.Add(7, 8);
+            Assert.IsTrue(g.Add(1, 2));
+            Assert.IsTrue(g.Add(2, 3));
+            Assert.IsFalse(g.Add(2, 3));
+            Assert.IsTrue(g.Add(9, 3));
+            Assert.IsTrue(g.Add(7, 8));
             Assert.AreEqual(10, g.VerticesCount);
             Assert.AreEqual(4, g.EdgesCount);
         }
 
         [TestMethod]
-        [ExpectedException(typeof(ArgumentException))]
         public void GraphTestMethod2()
         {
             var g = new Graph<int>();
             for (var i = 0; i < 10; i++)
-                g.Add(i);
-            g.Add(7);
+                Assert.IsTrue(g.Add(i));
+            Assert.IsFalse(g.Add(7));
         }
 
         [TestMethod]
@@ -39,8 +39,8 @@ namespace UnitTestProject1
         {
             var g = new Graph<int>();
             for (var i = 0; i < 10; i++)
-                g.Add(i);
-            g.Add(1, 5);
+                Assert.IsTrue(g.Add(i));
+            Assert.IsTrue(g.Add(1, 5));
             g.Add(1, 1);
         }
 
@@ -50,9 +50,12 @@ namespace UnitTestProject1
         {
             var g = new Graph<int>();
             for (var i = 0; i < 10; i++)
-                g.Add(i);
-            g.Add(1, 5);
-            g.Add(1, 30);
+                Assert.IsTrue(g.Add(i));
+            Assert.IsTrue(g.Add(1, 5));
+            Assert.IsTrue(g.Add(1, 30));
+            Assert.IsTrue(g.Vertices.Contains(30));
+            Assert.IsFalse(g.Add(1, 30));
+            g.Add(1, 20, true);
         }
 
     }

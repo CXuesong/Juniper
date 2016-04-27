@@ -22,11 +22,8 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Contract
         [JsonProperty("AfN")]
         public string AffiliationName { get; set; }
 
-        /// <summary>
-        /// （可选）
-        /// </summary>
         [JsonProperty("AfId")]
-        public long? AffiliationId { get; set; }
+        public long AffiliationId { get; set; }
 
         /// <summary>
         /// 返回表示当前对象的字符串。

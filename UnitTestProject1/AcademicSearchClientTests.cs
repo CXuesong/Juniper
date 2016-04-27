@@ -13,16 +13,19 @@ namespace UnitTestProject1
         public void ASClientTestMethod1()
         {
             var client = new AcademicSearchClient(Utility.AcademicSearchSubscriptionKey);
-            var result = TestUtility.Await(client.EvaluateAsync("Composite(AA.AuN=='jaime teevan')", 10, 0, Utility.DebugASEvaluationAttributes));
+            var result =
+                TestUtility.Await(client.EvaluateAsync("Composite(AA.AuN=='jaime teevan')", 10, 0,
+                    Utility.DebugASEvaluationAttributes));
             Trace.WriteLine($"Expression: {result.Expression}");
             foreach (var entity in result.Entities)
             {
                 Trace.WriteLine($"Entity: {entity}");
                 Trace.Indent();
                 foreach (var author in entity.Authors)
-                {
                     Trace.WriteLine($"Author: {author}");
-                }
+                Trace.WriteLine($"Conference: {entity.Conference}");
+                Trace.WriteLine($"Journal: {entity.Journal}");
+                Trace.WriteLine($"References: {string.Join(", ", entity.ReferenceIds)}");
                 Trace.Unindent();
             }
             Assert.IsTrue(result.Entities.Any());

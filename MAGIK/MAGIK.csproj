@@ -49,7 +49,9 @@
   <ItemGroup>
     <Compile Include="AcademicSearchClient.cs" />
     <Compile Include="AcademicSearchClient1.cs" />
-    <Compile Include="Analyzer\Graph.cs" />
+    <Compile Include="Analysis\Analyzer.cs" />
+    <Compile Include="Analysis\Graph.cs" />
+    <Compile Include="Analysis\KgNode.cs" />
     <Compile Include="Contract\ClientError.cs" />
     <Compile Include="ClientException.cs" />
     <Compile Include="Contract\Author.cs" />
