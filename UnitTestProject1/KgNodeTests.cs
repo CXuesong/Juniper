@@ -92,11 +92,11 @@ namespace UnitTestProject1
             // 1290206253: Microsoft
             // 63966007: Massachusetts Institute Of Technology
             var affiliation1 = new AffiliationNode(1290206253, "Microsoft");
-            //var affiliation2 = new AffiliationNode(63966007, "Massachusetts Institute Of Technology");
+            var affiliation2 = new AffiliationNode(63966007, "Massachusetts Institute Of Technology");
             var adj1 = TestUtility.AwaitSync(affiliation1.GetAdjacentOutNodesAsync());
-            //var adj2 = TestUtility.AwaitSync(affiliation2.GetAdjacentOutNodesAsync());
+            var adj2 = TestUtility.AwaitSync(affiliation2.GetAdjacentOutNodesAsync());
             Assert.IsTrue(adj1.Count >= 1000);
-            //Assert.IsTrue(adj2.Count >= 1000);
+            Assert.IsTrue(adj2.Count >= 1000);
         }
     }
 }

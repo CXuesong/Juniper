@@ -81,6 +81,9 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
 
         #endregion
 
+        /// <summary>
+        /// 异步计算查询表达式，并进行学术文献的检索。
+        /// </summary>
         public Task<EvaluationResult> EvaluateAsync(string expression, int count, int offset)
         {
             return EvaluateAsync(expression, count, offset, null, null);

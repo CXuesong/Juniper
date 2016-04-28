@@ -32,5 +32,8 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
 
         public static string FieldOfStudyIdEquals(long id)
             => $"Composite(F.FId={id})";
+
+        public static string EntityOrAuthorIdEquals(long id)
+            => $"And(Id={id},Composite(AA.AuId={id})";
     }
 }

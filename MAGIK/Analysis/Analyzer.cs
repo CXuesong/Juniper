@@ -4,6 +4,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
+using Microsoft.Contests.Bop.Participants.Magik.Academic;
 
 namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
 {
@@ -22,29 +23,29 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         // 因此，使用 status 映射处理这些可变状态。
         private Dictionary<long, NodeStatus> _Status = new Dictionary<long, NodeStatus>();
 
+        /// <summary>
+        /// 节点的状态标志。
+        /// </summary>
+        private enum NodeStatusFlag : byte
+        {
+            /// <summary>
+            /// 节点未被探索。
+            /// </summary>
+            Unexplored = 0,
+            /// <summary>
+            /// 这是探索过程的中间状态。仅在 Explore 函数调用完成前，部分节点会位于此状态。
+            /// </summary>
+            Exploring,
+            Explored
+        }
+
         private class NodeStatus
         {
             // 一个节点被探索，当且仅当在向服务器提交查询，并能够获得此节点的完全信息之后。
             // 在 DEBUG 模式下，完全信息包括节点的名称和此节点的邻节点（保存在 Graph 中，
             //      但很可能不在 exploredNodes 中，因为这些邻节点还没有被探索）。
             // 在 RELEASE 模式下，完全信息仅包括节点的邻节点。
-            public bool Explored { get; set; }
-        }
-
-        /// <summary>
-        /// 根据给定的一对标识符所对应的对象，异步检索二者之间可能的路径。
-        /// </summary>
-        /// <param name="id1">源点对象标识符。此标识符可以是论文（Id）或作者（AA.AuId）。</param>
-        /// <param name="id2">漏点对象标识符。此标识符可以是论文（Id）或作者（AA.AuId）。</param>
-        /// <returns>
-        /// 一个 Task 。其运行结果是一个集合（ICollection），集合中的每一个项目是一个数组，代表一条路径。
-        /// 数组按照 id1 → id2 的顺序返回路径途经的所有节点。
-        /// 合法的节点类型包括
-        /// 论文（Id）, 研究领域（F.Fid）, 期刊（J.JId）, 会议（C.CId）, 作者（AA.AuId）, 组织（AA.AfId）。
-        /// </returns>
-        public async Task<ICollection<KgNode[]>> FindPathsAsync(long id1, long id2)
-        {
-            throw new NotImplementedException();
+            public NodeStatusFlag Flag { get; set; }
         }
 
         /// <summary>
@@ -67,7 +68,11 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         private async Task Explore(long id)
         {
             var s = GetStatus(id);
-            if (s.Explored) return;
+            lock (s)
+            {
+                if (s.Flag != NodeStatusFlag.Unexplored) return;
+                s.Flag = NodeStatusFlag.Exploring;
+            }
             var node = nodes[id];
             Logging.Enter(this, node);
             var adj = await node.GetAdjacentOutNodesAsync();
@@ -87,8 +92,27 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                 }
                 graph.Add(id, an.Id);
             }
-            s.Explored = true;
+            s.Flag = NodeStatusFlag.Explored;
             Logging.Exit(this);
+        }
+
+        /// <summary>
+        /// 根据给定的一对标识符所对应的对象，异步检索二者之间可能的路径。
+        /// </summary>
+        /// <param name="id1">源点对象标识符。此标识符可以是论文（Id）或作者（AA.AuId）。</param>
+        /// <param name="id2">漏点对象标识符。此标识符可以是论文（Id）或作者（AA.AuId）。</param>
+        /// <returns>
+        /// 一个 Task 。其运行结果是一个集合（ICollection），集合中的每一个项目是一个数组，代表一条路径。
+        /// 数组按照 id1 → id2 的顺序返回路径途经的所有节点。
+        /// 合法的节点类型包括
+        /// 论文（Id）, 研究领域（F.Fid）, 期刊（J.JId）, 会议（C.CId）, 作者（AA.AuId）, 组织（AA.AfId）。
+        /// </returns>
+        public async Task<ICollection<KgNode[]>> FindPathsAsync(long id1, long id2)
+        {
+            // 先找到实体/作者再说。
+            var er1 = GlobalServices.ASClient.EvaluateAsync(SearchExpressionBuilder.EntityOrAuthorIdEquals(id1), 2, 0);
+            var er2 = GlobalServices.ASClient.EvaluateAsync(SearchExpressionBuilder.EntityOrAuthorIdEquals(id2), 2, 0);
+            return null;
         }
     }
 }
