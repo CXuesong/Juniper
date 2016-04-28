@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Net;
@@ -75,9 +76,23 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
         /// </summary>
         public string Referer { get; set; }
 
+        /// <summary>
+        /// 提交请求时自动的分页大小。
+        /// </summary>
+        public int PagingSize
+        {
+            get { return _PagingSize; }
+            set
+            {
+                if (value < 1) throw new ArgumentOutOfRangeException(nameof(value));
+                _PagingSize = value;
+            }
+        }
+
         #region 统计信息
 
         private long queryCounter = 0;
+        private int _PagingSize = 1000;
 
         #endregion
 
@@ -110,8 +125,62 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
             InitializeHeader(request, "GET");
             var result = await SendAsync<EvaluationResult>(request);
             traceSource.TraceEvent(TraceEventType.Verbose, 0, "Evaluate:{0} -> {1} Entities", expression,
-                result?.Entities?.Length);
+                result?.Entities?.Count);
             return result;
+        }
+
+        /// <summary>
+        /// 异步计算查询表达式，并进行学术文献的检索。启用自动分页。
+        /// </summary>
+        public Task<EvaluationResult> EvaluateAsync(string expression, int count)
+        {
+            return EvaluateAsync(expression, count, null, null);
+        }
+
+        /// <summary>
+        /// 异步计算查询表达式，并进行学术文献的检索。启用自动分页。
+        /// </summary>
+        public Task<EvaluationResult> EvaluateAsync(string expression, int count, string attributes)
+        {
+            return EvaluateAsync(expression, count, null, attributes);
+        }
+
+
+        /// <summary>
+        /// 异步计算查询表达式，并进行学术文献的检索。启用自动分页。
+        /// </summary>
+        public async Task<EvaluationResult> EvaluateAsync(string expression, int count, string orderBy, string attributes)
+        {
+            if (count < PagingSize) return await EvaluateAsync(expression, count, 0, orderBy, attributes);
+            traceSource.TraceEvent(TraceEventType.Verbose, 0, "Evaluate:{0}, Count<={1}", expression, count);
+            var results = new List<Entity>();
+            bool noMoreResults = false;
+            for (int offset = 0; offset < count; offset += PagingSize)
+            {
+                var result = await EvaluateAsync(expression, PagingSize, offset, orderBy, attributes);
+                results.AddRange(result.Entities);
+                if (result.Entities.Count < PagingSize)
+                {
+                    // No more results.
+                    noMoreResults = true;
+                    break;
+                }
+            }
+            if (!noMoreResults)
+            {
+                traceSource.TraceEvent(TraceEventType.Verbose, 0, "Evaluate:{0} -> {1} Entities.", expression,
+                    results.Count);
+            }
+            else
+            {
+                traceSource.TraceEvent(TraceEventType.Warning, 0, "Evaluate:{0} -> {1} Entities, Truncated.", expression,
+                    results.Count);
+            }
+            return new EvaluationResult
+            {
+                Expression = expression,
+                Entities = results
+            };
         }
 
         private void InitializeHeader(WebRequest request, string method)

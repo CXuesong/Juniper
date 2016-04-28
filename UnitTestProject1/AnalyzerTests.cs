@@ -57,16 +57,35 @@ namespace UnitTestProject1
             GlobalServices.ASClient.TraceStatistics();
         }
 
+        /// <summary>
+        /// 2-Hop Id - Id
+        /// </summary>
         [TestMethod]
         public void AnalyzerTestMethodEasy1()
         {
             // 2157025439: what do people ask their social networks and why a survey study of status message q a behavior
             // 2061503185: implicit feedback for inferring user preference a bibliography
             var paths = FindPaths(2157025439, 2061503185, true);
+            AssertPathExists(paths, 2157025439, 2122841972, 2061503185);
             // 1982462162: Jaime Teevan
             AssertPathExists(paths, 2157025439, 1982462162, 2061503185);
             // 41008148: Computer Science
             AssertPathExists(paths, 2157025439, 41008148, 2061503185);
+        }
+
+        /// <summary>
+        /// 2-Hop AuId - AuId
+        /// </summary>
+        [TestMethod]
+        public void AnalyzerTestMethodEasy2()
+        {
+            // 1982462162: Jaime Teevan
+            // 676500258: Susan T Dumais
+            var paths = FindPaths(1982462162, 676500258, true);
+            // 2057034832: Understanding Temporal Query Dynamics
+            AssertPathExists(paths, 1982462162, 2057034832, 676500258);
+            // 1290206253: Microsoft
+            AssertPathExists(paths, 1982462162, 1290206253, 676500258);
         }
     }
 }

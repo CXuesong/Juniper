@@ -1,4 +1,5 @@
-﻿using Newtonsoft.Json;
+﻿using System.Collections.Generic;
+using Newtonsoft.Json;
 
 namespace Microsoft.Contests.Bop.Participants.Magik.Academic.Contract
 {
@@ -8,6 +9,6 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic.Contract
         public string Expression { get; set; }
 
         [JsonProperty("entities")]
-        public Entity[] Entities { get; set; }
+        public IList<Entity> Entities { get; set; }
     }
 }

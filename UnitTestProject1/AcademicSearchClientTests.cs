@@ -15,7 +15,7 @@ namespace UnitTestProject1
         {
             Assert.IsNotNull(result);
             Trace.WriteLine($"Expression: {result.Expression}");
-            Trace.WriteLine($"Entries: [{result.Entities.Length}]");
+            Trace.WriteLine($"Entries: [{result.Entities.Count}]");
             foreach (var entity in result.Entities)
             {
                 Trace.WriteLine($"Entity: {entity}");
@@ -38,6 +38,19 @@ namespace UnitTestProject1
             }
         }
 
+        [TestInitialize]
+        public void OnTestInitialize()
+        {
+            // 这样可以更新调用计数器。
+            GlobalServices.ASClient = GlobalServices.CreateASClient();
+        }
+
+        [TestCleanup]
+        public void OnTestCleanup()
+        {
+            GlobalServices.ASClient.TraceStatistics();
+        }
+
         [TestMethod]
         public void ASClientTestMethod1()
         {
@@ -58,6 +71,21 @@ namespace UnitTestProject1
                     GlobalServices.DebugASEvaluationAttributes));
             Assert.IsTrue(result.Entities.Any());
             DumpEvaluationResult(result);
+        }
+
+        [TestMethod]
+        public void ASClientTestMethod3()
+        {
+            var client = GlobalServices.ASClient;
+            var result = TestUtility.AwaitSync(
+                client.EvaluateAsync("Composite(AA.AfN=='microsoft')", 5000,
+                    "Id"));
+            Assert.IsTrue(result.Entities.Any());
+            Trace.WriteLine($"{result.Entities.Count} Entities.");
+            foreach (var entity in result.Entities)
+            {
+                Trace.WriteLine(entity);
+            }
         }
     }
 }

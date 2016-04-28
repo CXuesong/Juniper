@@ -59,6 +59,8 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
     /// </summary>
     public class PaperNode : KgNode
     {
+        private const int PAPER_MAX_CITED = 100000;
+
         private readonly List<KgNodePair> loadedNodes;
 
         public PaperNode(Entity entity) : base(entity.Id, entity.Title)
@@ -83,7 +85,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                 nodes.Add(p);
                 nodes.Add(p.Reverse());
             }
-            // Id -> Id (RId)
+            // *Id -> Id (RId)
             if (entity.ReferenceIds != null)
                 nodes.AddRange(entity.ReferenceIds.Select(rid => new KgNodePair(this, new PaperNode(rid, null))));
             // Id -> J.JId
@@ -119,20 +121,26 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         /// </summary>
         public override async Task<ICollection<KgNodePair>> GetAdjacentNodesAsync()
         {
+            var nodes = loadedNodes;
             if (loadedNodes == null)
             {
                 var er = await GlobalServices.ASClient
                     .EvaluateAsync(SearchExpressionBuilder.EntityIdEquals(Id), 2, 0);
-                if (er.Entities.Length == 0)
+                if (er.Entities.Count == 0)
                 {
                     Logging.Trace(this, "找不到 Id 对应的实体。");
                     return EmptyNodePairs;
                 }
-                if (er.Entities.Length != 1)
+                if (er.Entities.Count != 1)
                     Logging.Trace(this, "Id 请求返回的实体不唯一。");
-                var nodes = ParseEntity(er.Entities[0]);
+                nodes = ParseEntity(er.Entities[0]);
                 return nodes;
             }
+            var backReferenceQueryTask = GlobalServices.ASClient.EvaluateAsync(
+                SearchExpressionBuilder.ReferenceIdContains(Id), PAPER_MAX_CITED);
+            // Id -> *Id (RId)
+            var er1 = await backReferenceQueryTask;
+            nodes.AddRange(er1.Entities.Select(et => new KgNodePair(new PaperNode(et), this)));
             return loadedNodes;
         }
     }
@@ -165,9 +173,9 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         /// </summary>
         public override async Task<ICollection<KgNodePair>> GetAdjacentNodesAsync()
         {
-            var er = await GlobalServices.ASClient
-                .EvaluateAsync(SearchExpressionBuilder.AuthorIdEquals(Id), AUTHOR_MAX_PAPERS, 0);
-            if (er.Entities.Length == 0) return EmptyNodePairs;
+            var er = await GlobalServices.ASClient.EvaluateAsync(
+                SearchExpressionBuilder.AuthorIdEquals(Id), AUTHOR_MAX_PAPERS);
+            if (er.Entities.Count == 0) return EmptyNodePairs;
             // AA.AuId -> Id
             // Id -> AA.AuId
             var nodes = new List<KgNodePair>();
@@ -203,7 +211,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         /// <summary>
         /// TODO 我们需要调查一下一个机构究竟能有多高产。
         /// </summary>
-        public const int AFFILIATION_MAX_PAPERS = 1000;
+        public const int AFFILIATION_MAX_PAPERS = 100000;
 
         public AffiliationNode(Author author) : base(author.AffiliationId, author.AffiliationName)
         {
@@ -221,10 +229,10 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             // TODO 引入一个 AttributeBuilder 或使用按位枚举代替 attribute 表达式
             // 找出 1091 人 + 1400 人大概需要 45 秒。好吧，估计是我的网速跪了。
             // 我们只需要找到作者。
-            var er = await GlobalServices.ASClient
-                .EvaluateAsync(SearchExpressionBuilder.AffiliationIdEquals(Id), AFFILIATION_MAX_PAPERS, 0,
-                    "AA.AuId,AA.AuN,AA.AfId,AA.AfN");
-            if (er.Entities.Length == 0) return EmptyNodePairs;
+            var er = await GlobalServices.ASClient.EvaluateAsync(
+                SearchExpressionBuilder.AffiliationIdEquals(Id), AFFILIATION_MAX_PAPERS,
+                "AA.AuId,AA.AuN,AA.AfId,AA.AfN");
+            if (er.Entities.Count == 0) return EmptyNodePairs;
             var nodes = new List<KgNodePair>();
             // AA.AfId -> AA.AuId
             // AA.AuId -> AA.AfId
@@ -251,7 +259,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         /// <summary>
         /// TODO 我们需要调查一下一个杂志究竟能有多高产。
         /// </summary>
-        public const int JOURNAL_MAX_PAPERS = 1000;
+        public const int JOURNAL_MAX_PAPERS = 2000000;
 
         public JournalNode(Journal entity) : base(entity.Id, entity.Name)
         {
@@ -266,9 +274,9 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         /// </summary>
         public override async Task<ICollection<KgNodePair>> GetAdjacentNodesAsync()
         {
-            var er = await GlobalServices.ASClient
-                .EvaluateAsync(SearchExpressionBuilder.JournalIdEquals(Id), JOURNAL_MAX_PAPERS, 0);
-            if (er.Entities.Length == 0) return EmptyNodePairs;
+            var er = await GlobalServices.ASClient.EvaluateAsync(
+                SearchExpressionBuilder.JournalIdEquals(Id), JOURNAL_MAX_PAPERS);
+            if (er.Entities.Count == 0) return EmptyNodePairs;
             var nodes = new List<KgNodePair>();
             // J.JId -> Id
             // Id -> J.JId
@@ -290,7 +298,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         /// <summary>
         /// TODO 我们需要调查一下一个会议究竟能有多高产。
         /// </summary>
-        public const int CONFERENCE_MAX_PAPERS = 1000;
+        public const int CONFERENCE_MAX_PAPERS = 200000;
 
         public ConferenceNode(Conference entity) : base(entity.Id, entity.Name)
         {
@@ -305,9 +313,9 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         /// </summary>
         public override async Task<ICollection<KgNodePair>> GetAdjacentNodesAsync()
         {
-            var er = await GlobalServices.ASClient
-                .EvaluateAsync(SearchExpressionBuilder.ConferenceIdEquals(Id), CONFERENCE_MAX_PAPERS, 0);
-            if (er.Entities.Length == 0) return EmptyNodePairs;
+            var er = await GlobalServices.ASClient.EvaluateAsync(
+                SearchExpressionBuilder.ConferenceIdEquals(Id), CONFERENCE_MAX_PAPERS);
+            if (er.Entities.Count == 0) return EmptyNodePairs;
             var nodes = new List<KgNodePair>();
             // C.CId -> Id
             // Id -> C.CId

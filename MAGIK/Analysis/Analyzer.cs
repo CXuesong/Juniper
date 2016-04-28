@@ -6,6 +6,7 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Contests.Bop.Participants.Magik.Academic;
+using Microsoft.Contests.Bop.Participants.Magik.Academic.Contract;
 
 namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
 {
@@ -134,17 +135,26 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             if (nodes.TryGetValue(id, out existing))
                 return existing;
             // 去网上找找。
-            var er = await GlobalServices.ASClient.EvaluateAsync(SearchExpressionBuilder.EntityOrAuthorIdEquals(id), 2, 0);
-            if (er.Entities.Length == 0) return null;
-            var et = er.Entities[0];
-            if (et.Id == id) return new PaperNode(et);
-            var au = et.Authors.FirstOrDefault(a => a.Id == id);
-            if (au == null)
+            var er = await GlobalServices.ASClient.EvaluateAsync(
+                SearchExpressionBuilder.EntityOrAuthorIdEquals(id), 2, 0);
+            if (er.Entities.Count == 0) return null;
+            foreach (var et in er.Entities)
             {
-                Logging.Warn(this, $"查找Id/AuId {id} 时接收到了不正确的信息。");
-                return null;
+                if (et.Authors == null)
+                {
+                    // 很有可能意味着这是一个作者节点，因为论文都是有作者的。
+                    // ISSUE 如果试图将作者Id（AA.AuId）作为实体Id（Id）进行查询的话，
+                    //          是可以查询出结果的。只是检索的结果除了 logprob 和 id
+                    //          以外，其他属性都是空的。
+                    // 所以需要跳过这一轮。
+                    continue;
+                }
+                var au = et.Authors.FirstOrDefault(a => a.Id == id);
+                if (au != null) return new AuthorNode(au);
+                if (et.Id == id) return new PaperNode(et);
             }
-            return new AuthorNode(au);
+            Logging.Warn(this, $"查找Id/AuId {id} 时接收到了不正确的信息。");
+            return null;
         }
 
         /// <summary>

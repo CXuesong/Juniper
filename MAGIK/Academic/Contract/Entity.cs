@@ -44,7 +44,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic.Contract
         /// </summary>
         public override string ToString()
         {
-            return $"[{Id}]{CultureInfo.CurrentCulture.TextInfo.ToTitleCase(Title)}";
+            return $"[{Id}]{Title?.ToTitleCase()}";
         }
     }
 
@@ -61,7 +61,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic.Contract
         /// </summary>
         public override string ToString()
         {
-            return $"[{Id}]{CultureInfo.CurrentCulture.TextInfo.ToTitleCase(Name)}";
+            return $"[{Id}]{Name?.ToTitleCase()}";
         }
     }
 
@@ -78,7 +78,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic.Contract
         /// </summary>
         public override string ToString()
         {
-            return $"[{Id}]{CultureInfo.CurrentCulture.TextInfo.ToTitleCase(Name)}";
+            return $"[{Id}]{Name?.ToTitleCase()}";
         }
     }
 
@@ -95,7 +95,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic.Contract
         /// </summary>
         public override string ToString()
         {
-            return $"[{Id}]{CultureInfo.CurrentCulture.TextInfo.ToTitleCase(Name)}";
+            return $"[{Id}]{Name.ToTitleCase()}";
         }
     }
 

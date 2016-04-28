@@ -18,6 +18,9 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
         public static string EntityIdEquals(long id)
             => $"Id={id}";
 
+        public static string ReferenceIdContains(long id)
+            => $"RId={id}";
+
         public static string AuthorIdEquals(long id)
             => $"Composite(AA.AuId={id})";
 
