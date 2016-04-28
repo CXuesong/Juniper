@@ -12,7 +12,7 @@ namespace UnitTestProject1
         [TestMethod]
         public void GraphTestMethod1()
         {
-            var g = new Graph<int>();
+            var g = new DirectedGraph<int>();
             for (var i = 0; i < 10; i++)
                 g.Add(i);
             Assert.IsTrue(g.Add(1, 2));
@@ -27,7 +27,7 @@ namespace UnitTestProject1
         [TestMethod]
         public void GraphTestMethod2()
         {
-            var g = new Graph<int>();
+            var g = new DirectedGraph<int>();
             for (var i = 0; i < 10; i++)
                 Assert.IsTrue(g.Add(i));
             Assert.IsFalse(g.Add(7));
@@ -37,7 +37,7 @@ namespace UnitTestProject1
         [ExpectedException(typeof(ArgumentException))]
         public void GraphTestMethod3()
         {
-            var g = new Graph<int>();
+            var g = new DirectedGraph<int>();
             for (var i = 0; i < 10; i++)
                 Assert.IsTrue(g.Add(i));
             Assert.IsTrue(g.Add(1, 5));
@@ -48,7 +48,7 @@ namespace UnitTestProject1
         [ExpectedException(typeof(KeyNotFoundException))]
         public void GraphTestMethod4()
         {
-            var g = new Graph<int>();
+            var g = new DirectedGraph<int>();
             for (var i = 0; i < 10; i++)
                 Assert.IsTrue(g.Add(i));
             Assert.IsTrue(g.Add(1, 5));
@@ -56,6 +56,8 @@ namespace UnitTestProject1
             Assert.IsTrue(g.Vertices.Contains(30));
             Assert.IsFalse(g.Add(1, 30));
             g.Add(1, 20, true);
+            Assert.AreEqual(11, g.VerticesCount);
+            Assert.AreEqual(3, g.EdgesCount);
         }
 
     }

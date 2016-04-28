@@ -9,9 +9,10 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>Microsoft.Contests.Bop.Participants.Magik</RootNamespace>
     <AssemblyName>MAGIK</AssemblyName>
-    <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.6</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+    <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <PlatformTarget>AnyCPU</PlatformTarget>
@@ -50,7 +51,7 @@
     <Compile Include="AcademicSearchClient.cs" />
     <Compile Include="AcademicSearchClient1.cs" />
     <Compile Include="Analysis\Analyzer.cs" />
-    <Compile Include="Analysis\Graph.cs" />
+    <Compile Include="Analysis\DirectedGraph.cs" />
     <Compile Include="Analysis\KgNode.cs" />
     <Compile Include="Contract\ClientError.cs" />
     <Compile Include="ClientException.cs" />

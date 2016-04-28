@@ -13,7 +13,7 @@ namespace UnitTestProject1
         /// <summary>
         /// 同步执行 Task ，并返回其结果。
         /// </summary>
-        public static T Await<T>(Task<T> task)
+        public static T AwaitSync<T>(Task<T> task)
         {
             if (task == null) throw new ArgumentNullException(nameof(task));
             try
