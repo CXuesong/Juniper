@@ -52,7 +52,8 @@
     <Compile Include="Academic\AcademicSearchClient1.cs" />
     <Compile Include="Academic\SearchExpressionBuilder.cs" />
     <Compile Include="Analysis\Analyzer.cs" />
-    <Compile Include="Analysis\Analyzer1.cs" />
+    <Compile Include="Analysis\Analyzer12.cs" />
+    <Compile Include="Analysis\Analyzer3.cs" />
     <Compile Include="Analysis\DirectedGraph.cs" />
     <Compile Include="Analysis\KgNode.cs" />
     <Compile Include="Analysis\KgNodeCollection.cs" />

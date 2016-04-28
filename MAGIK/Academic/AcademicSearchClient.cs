@@ -126,9 +126,12 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
             request.Method = method;
         }
 
-        ~AcademicSearchClient()
+        /// <summary>
+        /// 向 Trace 输出调用统计信息。
+        /// </summary>
+        public void TraceStatistics()
         {
-            Debug.WriteLine($"{queryCounter} queries sent.");
+            Trace.WriteLine($"Academic Search：{queryCounter}次查询。");
         }
     }
 }

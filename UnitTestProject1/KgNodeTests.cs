@@ -88,7 +88,6 @@ namespace UnitTestProject1
         [TestMethod]
         public void KgNodeTestMethod3()
         {
-            // 因为太慢所以……
             // 1290206253: Microsoft
             // 63966007: Massachusetts Institute Of Technology
             var affiliation1 = new AffiliationNode(1290206253, "Microsoft");

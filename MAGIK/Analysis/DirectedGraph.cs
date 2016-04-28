@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.Linq;
 using System.Runtime.CompilerServices;
 
 namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
@@ -121,12 +122,23 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             return e;
         }
 
+        /// <summary>
+        /// 获取有向图中所有边的字符串表示形式。注意，对于大规模的网络，此操作可能会非常慢。
+        /// </summary>
+        public string Dump()
+        {
+            return string.Join("\n", vertices.SelectMany(p =>
+                p.Value.AdjacentOutVertices.Select(v2 => $"{p.Key}, {v2}")));
+        }
+
+        /// <summary>
+        /// 用于在字典中保存节点的附加信息，如邻接表。
+        /// </summary>
         private class VertexEntry
         {
             public HashSet<TVertex> AdjacentInVertices { get; }
 
             public HashSet<TVertex> AdjacentOutVertices { get; }
-
 
             #region 用于向外部公开的“只读”集合
 

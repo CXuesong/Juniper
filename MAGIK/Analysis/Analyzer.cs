@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -63,9 +64,44 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         }
 
         /// <summary>
+        /// 尝试注册一个处于“未探索”状态的节点。
+        /// </summary>
+        /// <returns>
+        /// 如果此节点已经被注册，则返回 <c>false</c> 。
+        /// </returns>
+        private bool RegisterNode(KgNode node)
+        {
+            if (node == null) throw new ArgumentNullException(nameof(node));
+            KgNode nn;
+            if (nodes.TryGetValue(node.Id, out nn))
+            {
+                // 此节点已经被发现
+                // 断言节点类型。
+                if (nn.GetType() != node.GetType())
+                    Logging.Warn(this, "试图注册的节点{0}与已注册的节点{1}具有不同的类型。", node, nn);
+                return false;
+            }
+            else
+            {
+                nodes.Add(node.Id, node);
+                graph.Add(node.Id);
+                return true;
+            }
+        }
+
+        /// <summary>
         /// 如果指定的节点尚未探索，则探索此节点。
         /// </summary>
-        private async Task Explore(long id)
+        private Task ExploreAsync(KgNode node)
+        {
+            Debug.Assert(node != null);
+            return ExploreAsync(node.Id);
+        }
+
+        /// <summary>
+        /// 如果指定的节点尚未探索，则探索此节点。
+        /// </summary>
+        private async Task ExploreAsync(long id)
         {
             var s = GetStatus(id);
             lock (s)
@@ -76,24 +112,38 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             var node = nodes[id];
             Logging.Enter(this, node);
             var adj = await node.GetAdjacentOutNodesAsync();
+            // an: Adjacent Node
             foreach (var an in adj)
             {
-                KgNode nn;
-                if (nodes.TryGetValue(an.Id, out nn))
-                {
-                    // 此节点已经被发现
-                    // 断言节点类型。
-                    if (nn.GetType() != an.GetType())
-                        Logging.Warn(this, "新发现的节点{0}与已注册的节点{1}具有不同的类型。", an, nn);
-                }
-                else
-                {
-                    nodes.Add(an.Id, an);
-                }
+                RegisterNode(an);
                 graph.Add(id, an.Id);
             }
             s.Flag = NodeStatusFlag.Explored;
             Logging.Exit(this);
+        }
+
+        /// <summary>
+        /// 根据指定的 Id ，获取论文或者作者节点。
+        /// </summary>
+        /// <returns>如果找不到符合要求的节点，则返回<c>null</c>。</returns>
+        private async Task<KgNode> GetEntityOrAuthorNodeAsync(long id)
+        {
+            // 先尝试在节点缓存中查找。
+            KgNode existing;
+            if (nodes.TryGetValue(id, out existing))
+                return existing;
+            // 去网上找找。
+            var er = await GlobalServices.ASClient.EvaluateAsync(SearchExpressionBuilder.EntityOrAuthorIdEquals(id), 2, 0);
+            if (er.Entities.Length == 0) return null;
+            var et = er.Entities[0];
+            if (et.Id == id) return new PaperNode(et);
+            var au = et.Authors.FirstOrDefault(a => a.Id == id);
+            if (au == null)
+            {
+                Logging.Warn(this, $"查找Id/AuId {id} 时接收到了不正确的信息。");
+                return null;
+            }
+            return new AuthorNode(au);
         }
 
         /// <summary>
@@ -110,9 +160,38 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         public async Task<ICollection<KgNode[]>> FindPathsAsync(long id1, long id2)
         {
             // 先找到实体/作者再说。
-            var er1 = GlobalServices.ASClient.EvaluateAsync(SearchExpressionBuilder.EntityOrAuthorIdEquals(id1), 2, 0);
-            var er2 = GlobalServices.ASClient.EvaluateAsync(SearchExpressionBuilder.EntityOrAuthorIdEquals(id2), 2, 0);
-            return null;
+            var nodes = await Task.WhenAll(GetEntityOrAuthorNodeAsync(id1),
+                GetEntityOrAuthorNodeAsync(id2));
+            var node1 = nodes[0];
+            var node2 = nodes[1];
+            if (node1 == null) throw Utility.BuildIdNotFoundException(id1);
+            if (node2 == null) throw Utility.BuildIdNotFoundException(id2);
+            // 在图中注册节点。
+            RegisterNode(node1);
+            RegisterNode(node2);
+            // 开始搜索。
+            var hops = await Task.WhenAll(FindHop12PathsAsync(node1, node2), 
+                FindHop3PathsAsync(node1, node2));
+            // Possible multiple enumeration of IEnumerable
+            // I don't care
+            // 因为 FindHop12PathsAsync 和 FindHop3PathsAsync 返回的其实都是 List 。
+            return hops.SelectMany(hop => hop).Distinct().ToArray();
+        }
+
+        /// <summary>
+        /// 向 Trace 输出统计信息。
+        /// </summary>
+        public void TraceStatistics()
+        {
+            Trace.WriteLine($"缓存图：{graph.VerticesCount}个节点，{graph.EdgesCount}条边。");
+        }
+
+        /// <summary>
+        /// 向 Trace 输出图的文本表示。注意，对于大规模的网络，此操作可能会非常慢。
+        /// </summary>
+        public void TraceGraph()
+        {
+            Trace.WriteLine(graph.Dump());
         }
     }
 }

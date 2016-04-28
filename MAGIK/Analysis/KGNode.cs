@@ -50,7 +50,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         /// </summary>
         public override string ToString()
         {
-            return $"[{GetType().Name}:{Id}]{Name}";
+            return $"[{GetType().Name}:{Id}] {Name?.ToTitleCase()}";
         }
     }
 
@@ -120,7 +120,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         // 因为一个作者可以分属不同的机构，所以在这里缓存是没有什么卵用的。
         //private AffiliationNode _LoadedAffiliation;
 
-        public AuthorNode(Author entity) : base(entity.Id, entity.Name)
+        public AuthorNode(Author author) : base(author.Id, author.Name)
         {
             //_LoadedAffiliation = new AffiliationNode(entity);
         }
@@ -163,7 +163,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         /// </summary>
         public const int AFFILIATION_MAX_PAPERS = 1000;
 
-        public AffiliationNode(Author entity) : base(entity.AffiliationId, entity.AffiliationName)
+        public AffiliationNode(Author author) : base(author.AffiliationId, author.AffiliationName)
         {
         }
 
@@ -177,7 +177,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         public override async Task<ICollection<KgNode>> GetAdjacentOutNodesAsync()
         {
             // TODO 引入一个 AttributeBuilder 或使用按位枚举代替 attribute 表达式
-            // 找出 1091 人 + 1400 人大概需要 45 秒。
+            // 找出 1091 人 + 1400 人大概需要 45 秒。好吧，估计是我的网速跪了。
             // 我们只需要找到作者。
             var er = await GlobalServices.ASClient
                 .EvaluateAsync(SearchExpressionBuilder.AffiliationIdEquals(Id), AFFILIATION_MAX_PAPERS, 0,
