@@ -36,7 +36,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         }
 
         /// <summary>
-        /// 添加一条边。如果端点不存在，则将断点加入图。
+        /// 添加一条有向边。如果端点不存在，则将端点加入图。
         /// </summary>
         /// <returns>如果成功添加边，则返回<c>true</c>。否则，如果相同端点、相同方向的边已经存在，则返回<c>false</c>。</returns>
         /// <exception cref="ArgumentNullException"><paramref name="vertex1"/> 或 <paramref name="vertex2"/> 为 <c>null</c> 。</exception>

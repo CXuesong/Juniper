@@ -27,6 +27,8 @@
 using System;
 using System.IO;
 using System.Net;
+using System.Runtime.ExceptionServices;
+using System.Threading.Tasks;
 using Microsoft.Contests.Bop.Participants.Magik.Academic.Contract;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
@@ -42,6 +44,54 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
 
         #region the json client
 
+        private async Task<T> SendAsync<T>(WebRequest request)
+        {
+            try
+            {
+                var response = await request.GetResponseAsync();
+                return ProcessAsyncResponse<T>((HttpWebResponse)response);
+            }
+            catch (Exception e)
+            {
+                HandleException(e);
+                return default(T);
+            }
+        }
+
+        private T ProcessAsyncResponse<T>(HttpWebResponse webResponse)
+        {
+            using (webResponse)
+            {
+                if (webResponse.StatusCode == HttpStatusCode.OK ||
+                    webResponse.StatusCode == HttpStatusCode.Accepted ||
+                    webResponse.StatusCode == HttpStatusCode.Created)
+                {
+                    if (webResponse.ContentLength != 0)
+                    {
+                        using (var stream = webResponse.GetResponseStream())
+                        {
+                            if (stream != null)
+                            {
+                                var message = string.Empty;
+                                using (var reader = new StreamReader(stream))
+                                {
+                                    message = reader.ReadToEnd();
+                                }
+                                var settings = new JsonSerializerSettings
+                                {
+                                    DateFormatHandling = DateFormatHandling.IsoDateFormat,
+                                    NullValueHandling = NullValueHandling.Ignore,
+                                    ContractResolver = _defaultResolver
+                                };
+                                return JsonConvert.DeserializeObject<T>(message, settings);
+                            }
+                        }
+                    }
+                }
+            }
+            return default(T);
+        }
+
         /// <summary>
         /// Process the exception happened on rest call.
         /// </summary>
@@ -49,34 +99,35 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
         private void HandleException(Exception exception)
         {
             var webException = exception as WebException;
-            if (webException?.Response == null) return;
-            if (!webException.Response.ContentType.ToLower().Contains("application/json"))
-                return;
-            Stream stream = null;
-            try
+            if (webException?.Response != null
+                && webException.Response.ContentType.ToLower().Contains("application/json"))
             {
-                stream = webException.Response.GetResponseStream();
-                if (stream != null)
+                Stream stream = null;
+                try
                 {
-                    string errorObjectString;
-                    using (var reader = new StreamReader(stream))
+                    stream = webException.Response.GetResponseStream();
+                    if (stream != null)
                     {
-                        stream = null;
-                        errorObjectString = reader.ReadToEnd();
-                    }
-                    var errorCollection = JsonConvert.DeserializeObject<ClientErrorContainer>(errorObjectString);
-                    if (errorCollection != null)
-                    {
-                        throw new ClientException(errorCollection.Error);
+                        string errorObjectString;
+                        using (var reader = new StreamReader(stream))
+                        {
+                            stream = null;
+                            errorObjectString = reader.ReadToEnd();
+                        }
+                        var errorCollection = JsonConvert.DeserializeObject<ClientErrorContainer>(errorObjectString);
+                        if (errorCollection != null)
+                        {
+                            throw new ClientException(errorCollection.Error);
+                        }
                     }
                 }
+                finally
+                {
+                    stream?.Dispose();
+                }
             }
-            finally
-            {
-                stream?.Dispose();
-                throw exception;
-            }
+            ExceptionDispatchInfo.Capture(exception).Throw();
         }
-            #endregion
-        }
+        #endregion
+    }
 }

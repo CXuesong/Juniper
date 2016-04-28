@@ -17,8 +17,8 @@ namespace Microsoft.Contests.Bop.Participants.Magik
 
         private static async Task MainAsync()
         {
-            var client = new AcademicSearchClient(Utility.AcademicSearchSubscriptionKey);
-            var result = await client.EvaluateAsync("Composite(AA.AuN=='jaime teevan')", 10, 0, Utility.DebugASEvaluationAttributes);
+            var client = GlobalServices.ASClient;
+            var result = await client.EvaluateAsync("Composite(AA.AuN=='jaime teevan')", 10, 0);
         }
     }
 }

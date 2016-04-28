@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.IO;
 using System.Net;
 using System.Threading.Tasks;
@@ -16,11 +17,6 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
     /// </remarks>
     public partial class AcademicSearchClient
     {
-        /// <summary>
-        /// The service host
-        /// </summary>
-        private const string ServiceHost = "https://api.projectoxford.ai/academic/v1.0";
-
         /// <summary>
         /// The analyze query
         /// </summary>
@@ -41,6 +37,9 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
         /// </summary>
         private string _subscriptionKey;
 
+        private static readonly TraceSource traceSource =
+            new TraceSource("Microsoft.Contests.Bop.Participants.Magik.Academic");
+
         /// <summary>
         /// 初始化一个新的 <see cref="VisionServiceClient"/> 实例。
         /// </summary>
@@ -48,6 +47,38 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
         public AcademicSearchClient(string subscriptionKey)
         {
             _subscriptionKey = subscriptionKey;
+        }
+
+        /// <summary>
+        /// Academic Search API 服务器主机 Url 。
+        /// 此属性的默认值为 https://api.projectoxford.ai/academic/v1.0 。
+        /// </summary>
+        public string ServiceHostUrl { get; set; } = "https://api.projectoxford.ai/academic/v1.0";
+
+        /// <summary>
+        /// 向 Academic Search API 服务器主机提交查询请求时，需要在查询 Url 后附加的内容。
+        /// </summary>
+        public string QuerySuffix { get; set; }
+
+        /// <summary>
+        /// 使用 Evaluate 方法时，如果没有指定 attributes ，则会使用此属性所指定的请求特性集合。
+        /// </summary>
+        public string EvaluationDefaultAttributes { get; set; }
+
+        /// <summary>
+        /// 提交请求时，向服务器发送的 User Agent 。
+        /// </summary>
+        public string UserAgent { get; set; }
+
+        /// <summary>
+        /// 提交请求时，向服务器发送的 Referer 。
+        /// </summary>
+        public string Referer { get; set; }
+
+
+        public Task<EvaluationResult> EvaluateAsync(string expression, int count, int offset)
+        {
+            return EvaluateAsync(expression, count, offset, null, null);
         }
 
         /// <summary>
@@ -64,60 +95,27 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
         public async Task<EvaluationResult> EvaluateAsync(string expression, int count, int offset,
             string orderBy, string attributes)
         {
-            string requestUrl =
-                $"{ServiceHost}/evaluate?expr={expression}&model=latest&count={count}&offset={offset}&orderby={orderBy}&attributes={attributes}";
+            traceSource.TraceEvent(TraceEventType.Verbose, 0, "Evaluate:{0}", expression);
+            var requestUrl =
+                $"{ServiceHostUrl}/evaluate?expr={expression}&model=latest&count={count}&offset={offset}&orderby={orderBy}&attributes={attributes ?? EvaluationDefaultAttributes}{QuerySuffix}";
             var request = WebRequest.Create(requestUrl);
+            InitializeHeader(request, "GET");
+            var result = await SendAsync<EvaluationResult>(request);
+            traceSource.TraceEvent(TraceEventType.Verbose, 0, "Evaluate:{0} -> {1} Entities", expression,
+                result?.Entities?.Length);
+            return result;
+        }
+
+        private void InitializeHeader(WebRequest request, string method)
+        {
             request.Headers[_subscriptionKeyName] = _subscriptionKey;
-            request.Method = "GET";
-            return await SendAsync<EvaluationResult>(request);
-        }
-
-        private async Task<T> SendAsync<T>(WebRequest request)
-        {
-            try
+            var hwr = (request as HttpWebRequest);
+            if (hwr != null)
             {
-                var response = await request.GetResponseAsync();
-                return ProcessAsyncResponse<T>((HttpWebResponse)response);
+                hwr.UserAgent = UserAgent;
+                hwr.Referer = Referer;
             }
-            catch (Exception e)
-            {
-                HandleException(e);
-                return default(T);
-            }
-        }
-
-        private T ProcessAsyncResponse<T>(HttpWebResponse webResponse)
-        {
-            using (webResponse)
-            {
-                if (webResponse.StatusCode == HttpStatusCode.OK ||
-                    webResponse.StatusCode == HttpStatusCode.Accepted ||
-                    webResponse.StatusCode == HttpStatusCode.Created)
-                {
-                    if (webResponse.ContentLength != 0)
-                    {
-                        using (var stream = webResponse.GetResponseStream())
-                        {
-                            if (stream != null)
-                            {
-                                var message = string.Empty;
-                                using (var reader = new StreamReader(stream))
-                                {
-                                    message = reader.ReadToEnd();
-                                }
-                                var settings = new JsonSerializerSettings
-                                {
-                                    DateFormatHandling = DateFormatHandling.IsoDateFormat,
-                                    NullValueHandling = NullValueHandling.Ignore,
-                                    ContractResolver = _defaultResolver
-                                };
-                                return JsonConvert.DeserializeObject<T>(message, settings);
-                            }
-                        }
-                    }
-                }
-            }
-            return default(T);
+            request.Method = method;
         }
     }
 }

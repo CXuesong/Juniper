@@ -32,6 +32,9 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic.Contract
         [JsonProperty("C")]
         public Conference Conference { get; set; }
 
+        [JsonProperty("F")]
+        public FieldOfStudy[] FieldsOfStudy { get; set; }
+
         /// <summary>
         /// 返回表示当前对象的字符串。
         /// </summary>

@@ -13,22 +13,26 @@ namespace UnitTestProject1
         [TestMethod]
         public void ASClientTestMethod1()
         {
-            var client = new AcademicSearchClient(Utility.AcademicSearchSubscriptionKey);
+            var client = GlobalServices.ASClient;
             var result = TestUtility.AwaitSync(
                 client.EvaluateAsync("Composite(AA.AuN=='jaime teevan')", 10, 0,
-                    Utility.DebugASEvaluationAttributes));
+                    GlobalServices.DebugASEvaluationAttributes));
             Assert.IsNotNull(result);
             Trace.WriteLine($"Expression: {result.Expression}");
             foreach (var entity in result.Entities)
             {
                 Trace.WriteLine($"Entity: {entity}");
+                Trace.WriteLine($"Authors: [{entity.Authors.Length}]");
                 Trace.Indent();
-                foreach (var author in entity.Authors)
-                    Trace.WriteLine($"Author: {author}");
+                foreach (var author in entity.Authors) Trace.WriteLine(author);
+                Trace.Unindent();
                 Trace.WriteLine($"Conference: {entity.Conference}");
                 Trace.WriteLine($"Journal: {entity.Journal}");
-                Trace.WriteLine($"References: {string.Join(", ", entity.ReferenceIds)}");
+                Trace.WriteLine($"Field of Study: [{entity.FieldsOfStudy.Length}]");
+                Trace.Indent();
+                foreach (var fos in entity.FieldsOfStudy) Trace.WriteLine(fos);
                 Trace.Unindent();
+                Trace.WriteLine($"References:[{entity.ReferenceIds.Length}] {string.Join(", ", entity.ReferenceIds)}");
             }
             Assert.IsTrue(result.Entities.Any());
         }
