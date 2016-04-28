@@ -9,12 +9,13 @@ namespace UnitTestProject1
     [TestClass]
     public class KgNodeTests
     {
-        private void AssertNodeExists(IEnumerable<KgNode> nodes, long id)
+        private void AssertNodeExists(IEnumerable<KgNodePair> nodes, long id)
         {
-            Assert.IsTrue(nodes.Any(n => n.Id == id), $"在节点集合[{nodes.Count()}]中找不到 Id 为 {id} 的节点。");
+            Assert.IsTrue(nodes.Any(n => n.Node1.Id == id || n.Node2.Id == id),
+                $"在节点集合[{nodes.Count()}]中找不到 Id 为 {id} 的节点。");
         }
 
-        private void AssertNodeExists(IEnumerable<KgNode> nodes, params long[] ids)
+        private void AssertNodeExists(IEnumerable<KgNodePair> nodes, params long[] ids)
         {
             foreach (var id in ids)
             {
@@ -32,10 +33,10 @@ namespace UnitTestProject1
             // 2061503185: implicit feedback for inferring user preference a bibliography
             var paper1 = new PaperNode(2157025439, "what do people ask ...");
             var paper2 = new PaperNode(2061503185, "implicit feedback for inferring ...");
-            var adj1 = TestUtility.AwaitSync(paper1.GetAdjacentOutNodesAsync());
-            var adj2 = TestUtility.AwaitSync(paper2.GetAdjacentOutNodesAsync());
+            var adj1 = TestUtility.AwaitSync(paper1.GetAdjacentNodesAsync());
+            var adj2 = TestUtility.AwaitSync(paper2.GetAdjacentNodesAsync());
             // Author + Conference/Journal + Field of Study + References
-            Assert.AreEqual(3 + 1 + 3 + 26, adj1.Count);
+            Assert.AreEqual(3*2 + 1*2 + 3*2 + 26, adj1.Count);
             // Authors
             AssertNodeExists(adj1, 2123314761, 1982462162, 2063838112);
             // FoS
@@ -48,7 +49,7 @@ namespace UnitTestProject1
                 1980908438, 2071373254, 2233354937, 2111141603,
                 2026569904, 1517685083, 2077150935, 1967873612,
                 2049614562, 2027253226, 1975410736);
-            Assert.AreEqual(2 + 1 + 3 + 31, adj2.Count);
+            Assert.AreEqual(2*2 + 1*2 + 3*2 + 31, adj2.Count);
             // Authors
             AssertNodeExists(adj2, 2180501019, 1982462162);
             // FoS
@@ -74,12 +75,12 @@ namespace UnitTestProject1
             // 1982462162: Jaime Teevan
             var author1 = new AuthorNode(2123314761, "Meredith Ringel Morris");
             var author2 = new AuthorNode(1982462162, "Jaime Teevan");
-            var adj1 = TestUtility.AwaitSync(author1.GetAdjacentOutNodesAsync());
-            var adj2 = TestUtility.AwaitSync(author2.GetAdjacentOutNodesAsync());
+            var adj1 = TestUtility.AwaitSync(author1.GetAdjacentNodesAsync());
+            var adj2 = TestUtility.AwaitSync(author2.GetAdjacentNodesAsync());
             // 150篇论文 + 4机构
-            Assert.IsTrue(adj1.Count >= 150 + 4);
+            Assert.IsTrue(adj1.Count/2 >= 150 + 4);
             // 128篇论文 + 3机构
-            Assert.IsTrue(adj2.Count >= 128 + 3);
+            Assert.IsTrue(adj2.Count/2 >= 128 + 3);
         }
 
         /// <summary>
@@ -92,10 +93,10 @@ namespace UnitTestProject1
             // 63966007: Massachusetts Institute Of Technology
             var affiliation1 = new AffiliationNode(1290206253, "Microsoft");
             var affiliation2 = new AffiliationNode(63966007, "Massachusetts Institute Of Technology");
-            var adj1 = TestUtility.AwaitSync(affiliation1.GetAdjacentOutNodesAsync());
-            var adj2 = TestUtility.AwaitSync(affiliation2.GetAdjacentOutNodesAsync());
-            Assert.IsTrue(adj1.Count >= 1000);
-            Assert.IsTrue(adj2.Count >= 1000);
+            var adj1 = TestUtility.AwaitSync(affiliation1.GetAdjacentNodesAsync());
+            var adj2 = TestUtility.AwaitSync(affiliation2.GetAdjacentNodesAsync());
+            Assert.IsTrue(adj1.Count/2 >= 1000);
+            Assert.IsTrue(adj2.Count/2 >= 1000);
         }
     }
 }

@@ -111,12 +111,13 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             }
             var node = nodes[id];
             Logging.Enter(this, node);
-            var adj = await node.GetAdjacentOutNodesAsync();
+            var adj = await node.GetAdjacentNodesAsync();
             // an: Adjacent Node
             foreach (var an in adj)
             {
-                RegisterNode(an);
-                graph.Add(id, an.Id);
+                RegisterNode(an.Node1);
+                RegisterNode(an.Node2);
+                graph.Add(an.Node1.Id, an.Node2.Id);
             }
             s.Flag = NodeStatusFlag.Explored;
             Logging.Exit(this);

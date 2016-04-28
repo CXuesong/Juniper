@@ -16,7 +16,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             await Task.WhenAll(ExploreAsync(node1.Id), ExploreAsync(node2.Id));
             var paths = new List<KgNode[]>();
             var out1 = graph.AdjacentOutVertices(node1.Id);
-            var in2 = graph.AdjacentOutVertices(node2.Id);
+            var in2 = graph.AdjacentInVertices(node2.Id);
             // 1-hop
             if (out1.Contains(node2.Id)) paths.Add(new[] {node1, node2});
             // 2-Hop
