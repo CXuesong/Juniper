@@ -58,13 +58,16 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="TestUtility.cs" />
     <Compile Include="DirectedGraphTests.cs" />
-    <Compile Include="KgGraphTests.cs" />
+    <Compile Include="KgNodeTests.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\MAGIK\MAGIK.csproj">
       <Project>{1E4801AE-0383-4F49-94EA-1739D6F5D59B}</Project>
       <Name>MAGIK</Name>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="App.config" />
   </ItemGroup>
   <Choose>
     <When Condition="'$(VisualStudioVersion)' == '10.0' And '$(IsCodedUITest)' == 'True'">

@@ -1,4 +1,5 @@
-﻿using System.Globalization;
+﻿using System.Collections.Generic;
+using System.Globalization;
 using Newtonsoft.Json;
 
 namespace Microsoft.Contests.Bop.Participants.Magik.Academic.Contract
@@ -32,6 +33,9 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic.Contract
         [JsonProperty("C")]
         public Conference Conference { get; set; }
 
+        /// <summary>
+        /// 研究领域。注意，此属性可能为 null 。
+        /// </summary>
         [JsonProperty("F")]
         public FieldOfStudy[] FieldsOfStudy { get; set; }
 
@@ -92,6 +96,21 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic.Contract
         public override string ToString()
         {
             return $"[{Id}]{CultureInfo.CurrentCulture.TextInfo.ToTitleCase(Name)}";
+        }
+    }
+
+    internal class PaperIdComparer : IEqualityComparer<Entity>
+    {
+        public static readonly PaperIdComparer Default = new PaperIdComparer();
+
+        public bool Equals(Entity x, Entity y)
+        {
+            return x?.Id == y?.Id;
+        }
+
+        public int GetHashCode(Entity obj)
+        {
+            return obj?.Id.GetHashCode() ?? 0;
         }
     }
 }

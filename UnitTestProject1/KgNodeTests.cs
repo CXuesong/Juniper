@@ -7,7 +7,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 namespace UnitTestProject1
 {
     [TestClass]
-    public class KgGraphTests
+    public class KgNodeTests
     {
         private void AssertNodeExists(IEnumerable<KgNode> nodes, long id)
         {
@@ -26,7 +26,7 @@ namespace UnitTestProject1
         /// 对 PaperNode 进行测试。
         /// </summary>
         [TestMethod]
-        public void KgGraphTest1()
+        public void KgNodeTestMethod1()
         {
             // 2157025439: what do people ask their social networks and why a survey study of status message q a behavior
             // 2061503185: implicit feedback for inferring user preference a bibliography
@@ -62,6 +62,41 @@ namespace UnitTestProject1
                 2170406741, 2094577819, 2099716451, 2095797281,
                 1966042082, 1600518742, 1881727220, 1979229249,
                 2132809512, 24452059, 2143321903, 2004461062);
+        }
+
+        /// <summary>
+        /// 对 AuthorNode 进行测试。
+        /// </summary>
+        [TestMethod]
+        public void KgNodeTestMethod2()
+        {
+            // 2123314761: Meredith Ringel Morris
+            // 1982462162: Jaime Teevan
+            var author1 = new AuthorNode(2123314761, "Meredith Ringel Morris");
+            var author2 = new AuthorNode(1982462162, "Jaime Teevan");
+            var adj1 = TestUtility.AwaitSync(author1.GetAdjacentOutNodesAsync());
+            var adj2 = TestUtility.AwaitSync(author2.GetAdjacentOutNodesAsync());
+            // 150篇论文 + 4机构
+            Assert.IsTrue(adj1.Count >= 150 + 4);
+            // 128篇论文 + 3机构
+            Assert.IsTrue(adj2.Count >= 128 + 3);
+        }
+
+        /// <summary>
+        /// 对 AffiliationNode 进行测试。
+        /// </summary>
+        [TestMethod]
+        public void KgNodeTestMethod3()
+        {
+            // 因为太慢所以……
+            // 1290206253: Microsoft
+            // 63966007: Massachusetts Institute Of Technology
+            var affiliation1 = new AffiliationNode(1290206253, "Microsoft");
+            //var affiliation2 = new AffiliationNode(63966007, "Massachusetts Institute Of Technology");
+            var adj1 = TestUtility.AwaitSync(affiliation1.GetAdjacentOutNodesAsync());
+            //var adj2 = TestUtility.AwaitSync(affiliation2.GetAdjacentOutNodesAsync());
+            Assert.IsTrue(adj1.Count >= 1000);
+            //Assert.IsTrue(adj2.Count >= 1000);
         }
     }
 }

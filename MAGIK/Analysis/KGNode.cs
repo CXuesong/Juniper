@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.Eventing.Reader;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -11,6 +12,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
 {
     /// <summary>
     /// 表示知识图上的一个节点。这是一个公共基类。
+    /// 并且，我正试图让这个类成为一个非可变类型。
     /// </summary>
     public abstract class KgNode
     {
@@ -110,12 +112,22 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
     /// </summary>
     public class AuthorNode : KgNode
     {
+        /// <summary>
+        /// 我们需要调查一下一个作者究竟能有多高产。
+        /// </summary>
+        public const int AUTHOR_MAX_PAPERS = 2000;
+
+        // 因为一个作者可以分属不同的机构，所以在这里缓存是没有什么卵用的。
+        //private AffiliationNode _LoadedAffiliation;
+
         public AuthorNode(Author entity) : base(entity.Id, entity.Name)
         {
+            //_LoadedAffiliation = new AffiliationNode(entity);
         }
 
         public AuthorNode(long id, string name) : base(id, name)
         {
+            //_LoadedAffiliation = null;
         }
 
         /// <summary>
@@ -123,7 +135,21 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         /// </summary>
         public override async Task<ICollection<KgNode>> GetAdjacentOutNodesAsync()
         {
-            throw new NotImplementedException();
+            var er = await GlobalServices.ASClient
+                .EvaluateAsync(SearchExpressionBuilder.AuthorIdEquals(Id), AUTHOR_MAX_PAPERS, 0);
+            if (er.Entities.Length == 0) return EmptyNodes;
+            // AA.Id -> Id
+            var nodes = er.Entities.Select(et => (KgNode) new PaperNode(et)).ToList();
+            // AA.Id -> AA.AfId
+            // 啊哈！我们应当注意到，一个作者可以分属不同的机构。
+            // 另外，也许我们可以充分利用搜索结果，因为在搜索结果里面也包含了和
+            //      这个作者协作的其他作者的机构信息。
+            var affiliations = er.Entities
+                .Select(et => et.Authors.First(au => au.Id == this.Id))
+                .Distinct(AuthorAffiliationComparer.Default)
+                .Select(au => new AffiliationNode(au));
+            nodes.AddRange(affiliations);
+            return nodes;
         }
     }
 
@@ -132,6 +158,11 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
     /// </summary>
     public class AffiliationNode : KgNode
     {
+        /// <summary>
+        /// TODO 我们需要调查一下一个机构究竟能有多高产。
+        /// </summary>
+        public const int AFFILIATION_MAX_PAPERS = 1000;
+
         public AffiliationNode(Author entity) : base(entity.AffiliationId, entity.AffiliationName)
         {
         }
@@ -141,11 +172,26 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         }
 
         /// <summary>
-        /// 异步枚举由此节点指向的邻节点。
+        /// 异步枚举由此节点指向的邻节点。（很慢！）
         /// </summary>
-        public override Task<ICollection<KgNode>> GetAdjacentOutNodesAsync()
+        public override async Task<ICollection<KgNode>> GetAdjacentOutNodesAsync()
         {
-            throw new NotImplementedException();
+            // TODO 引入一个 AttributeBuilder 或使用按位枚举代替 attribute 表达式
+            // 找出 1091 人 + 1400 人大概需要 45 秒。
+            // 我们只需要找到作者。
+            var er = await GlobalServices.ASClient
+                .EvaluateAsync(SearchExpressionBuilder.AffiliationIdEquals(Id), AFFILIATION_MAX_PAPERS, 0,
+                    "AA.AuId,AA.AuN,AA.AfId,AA.AfN");
+            if (er.Entities.Length == 0) return EmptyNodes;
+            // AA.AfId -> AA.AuId
+            // 注意到，一篇文章可能有多个作者属于当前 Id 对应的机构。
+            // 所以使用 SelectMany + Where 而非 Select + First
+            var nodes = er.Entities
+                .SelectMany(et => et.Authors.Where(au => au.AffiliationId == this.Id))
+                .Distinct(AuthorIdComparer.Default)
+                .Select(au => (KgNode) new AuthorNode(au))
+                .ToList();
+            return nodes;
         }
     }
 
@@ -154,6 +200,11 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
     /// </summary>
     public class JournalNode : KgNode
     {
+        /// <summary>
+        /// TODO 我们需要调查一下一个杂志究竟能有多高产。
+        /// </summary>
+        public const int JOURNAL_MAX_PAPERS = 1000;
+
         public JournalNode(Journal entity) : base(entity.Id, entity.Name)
         {
         }
@@ -163,11 +214,18 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         }
 
         /// <summary>
-        /// 异步枚举由此节点指向的邻节点。
+        /// 异步枚举由此节点指向的邻节点。（慢！）
         /// </summary>
-        public override Task<ICollection<KgNode>> GetAdjacentOutNodesAsync()
+        public override async Task<ICollection<KgNode>> GetAdjacentOutNodesAsync()
         {
-            throw new NotImplementedException();
+            var er = await GlobalServices.ASClient
+                .EvaluateAsync(SearchExpressionBuilder.JournalIdEquals(Id), JOURNAL_MAX_PAPERS, 0);
+            if (er.Entities.Length == 0) return EmptyNodes;
+            // J.JId -> Id
+            var nodes = er.Entities
+                .Select(et => (KgNode)new PaperNode(et))
+                .ToList();
+            return nodes;
         }
     }
 
@@ -176,6 +234,11 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
     /// </summary>
     public class ConferenceNode : KgNode
     {
+        /// <summary>
+        /// TODO 我们需要调查一下一个会议究竟能有多高产。
+        /// </summary>
+        public const int CONFERENCE_MAX_PAPERS = 1000;
+
         public ConferenceNode(Conference entity) : base(entity.Id, entity.Name)
         {
         }
@@ -185,11 +248,18 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         }
 
         /// <summary>
-        /// 异步枚举由此节点指向的邻节点。
+        /// 异步枚举由此节点指向的邻节点。（慢！）
         /// </summary>
-        public override Task<ICollection<KgNode>> GetAdjacentOutNodesAsync()
+        public override async Task<ICollection<KgNode>> GetAdjacentOutNodesAsync()
         {
-            throw new NotImplementedException();
+            var er = await GlobalServices.ASClient
+                .EvaluateAsync(SearchExpressionBuilder.ConferenceIdEquals(Id), CONFERENCE_MAX_PAPERS, 0);
+            if (er.Entities.Length == 0) return EmptyNodes;
+            // C.CId -> Id
+            var nodes = er.Entities
+                .Select(et => (KgNode)new PaperNode(et))
+                .ToList();
+            return nodes;
         }
     }
 
@@ -207,11 +277,12 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         }
 
         /// <summary>
-        /// 异步枚举由此节点指向的邻节点。
+        /// 异步枚举由此节点指向的邻节点。（特别慢！）
         /// </summary>
         public override Task<ICollection<KgNode>> GetAdjacentOutNodesAsync()
         {
-            throw new NotImplementedException();
+            // …… 以至于我已经不忍心写出来了 ||-_-
+            return Task.FromResult<ICollection<KgNode>>(EmptyNodes);
         }
     }
 }

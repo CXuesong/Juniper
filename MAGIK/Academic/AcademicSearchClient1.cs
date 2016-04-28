@@ -46,6 +46,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
 
         private async Task<T> SendAsync<T>(WebRequest request)
         {
+            queryCounter++;
             try
             {
                 var response = await request.GetResponseAsync();

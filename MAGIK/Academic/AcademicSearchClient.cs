@@ -38,7 +38,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
         private string _subscriptionKey;
 
         private static readonly TraceSource traceSource =
-            new TraceSource("Microsoft.Contests.Bop.Participants.Magik.Academic");
+            new TraceSource("Magik.Academic");
 
         /// <summary>
         /// 初始化一个新的 <see cref="VisionServiceClient"/> 实例。
@@ -75,6 +75,11 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
         /// </summary>
         public string Referer { get; set; }
 
+        #region 统计信息
+
+        private long queryCounter = 0;
+
+        #endregion
 
         public Task<EvaluationResult> EvaluateAsync(string expression, int count, int offset)
         {
@@ -116,6 +121,11 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
                 hwr.Referer = Referer;
             }
             request.Method = method;
+        }
+
+        ~AcademicSearchClient()
+        {
+            Debug.WriteLine($"{queryCounter} queries sent.");
         }
     }
 }

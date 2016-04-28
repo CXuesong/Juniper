@@ -7,7 +7,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik
 {
     internal static class Logging
     {
-        private static readonly TraceSource source = new TraceSource("Microsoft.Contests.Bop.Participants.Magik");
+        private static readonly TraceSource source = new TraceSource("Magik");
 
         public static void Enter(object obj, object param = null, [CallerMemberName] string memberName = null)
         {
