@@ -1,15 +1,11 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Dynamic;
 using System.IO;
-using System.Linq;
 using System.Net;
-using System.Text;
 using System.Threading.Tasks;
-using Microsoft.Contests.Bop.Participants.Magik.Contract;
+using Microsoft.Contests.Bop.Participants.Magik.Academic.Contract;
 using Newtonsoft.Json;
 
-namespace Microsoft.Contests.Bop.Participants.Magik
+namespace Microsoft.Contests.Bop.Participants.Magik.Academic
 {
     /// <summary>
     /// 提供了 Academic Search API 的 .NET 封装。

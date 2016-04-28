@@ -31,7 +31,7 @@
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //
 
-namespace Microsoft.Contests.Bop.Participants.Magik.Contract
+namespace Microsoft.Contests.Bop.Participants.Magik.Academic.Contract
 {
     /// <summary>
     /// Container of ClientError and Error Entity.

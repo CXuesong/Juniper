@@ -48,17 +48,19 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="AcademicSearchClient.cs" />
-    <Compile Include="AcademicSearchClient1.cs" />
+    <Compile Include="Academic\AcademicSearchClient.cs" />
+    <Compile Include="Academic\AcademicSearchClient1.cs" />
     <Compile Include="Analysis\Analyzer.cs" />
+    <Compile Include="Analysis\Analyzer1.cs" />
     <Compile Include="Analysis\DirectedGraph.cs" />
     <Compile Include="Analysis\KgNode.cs" />
-    <Compile Include="Contract\ClientError.cs" />
-    <Compile Include="ClientException.cs" />
-    <Compile Include="Contract\Author.cs" />
-    <Compile Include="Contract\ClientErrorContainer.cs" />
-    <Compile Include="Contract\Entity.cs" />
-    <Compile Include="Contract\EvaluationResult.cs" />
+    <Compile Include="Analysis\KgNodeCollection.cs" />
+    <Compile Include="Academic\Contract\ClientError.cs" />
+    <Compile Include="Academic\ClientException.cs" />
+    <Compile Include="Academic\Contract\Author.cs" />
+    <Compile Include="Academic\Contract\ClientErrorContainer.cs" />
+    <Compile Include="Academic\Contract\Entity.cs" />
+    <Compile Include="Academic\Contract\EvaluationResult.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Utility.cs" />

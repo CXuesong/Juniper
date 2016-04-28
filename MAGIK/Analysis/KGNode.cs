@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Microsoft.Contests.Bop.Participants.Magik.Contract;
+using Microsoft.Contests.Bop.Participants.Magik.Academic.Contract;
 
 namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
 {

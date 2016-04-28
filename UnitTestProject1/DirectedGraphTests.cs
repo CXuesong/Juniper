@@ -7,7 +7,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 namespace UnitTestProject1
 {
     [TestClass]
-    public class GraphTests
+    public class DirectedGraphTests
     {
         [TestMethod]
         public void GraphTestMethod1()

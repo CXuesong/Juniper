@@ -33,9 +33,9 @@
 
 using System;
 using System.Net;
-using Microsoft.Contests.Bop.Participants.Magik.Contract;
+using Microsoft.Contests.Bop.Participants.Magik.Academic.Contract;
 
-namespace Microsoft.Contests.Bop.Participants.Magik
+namespace Microsoft.Contests.Bop.Participants.Magik.Academic
 {
     /// <summary>
     /// The Exception will be shown to client.

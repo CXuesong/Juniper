@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Microsoft.Contests.Bop.Participants.Magik;
+using Microsoft.Contests.Bop.Participants.Magik.Academic;
 
 namespace UnitTestProject1
 {

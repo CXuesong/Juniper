@@ -25,17 +25,13 @@
 //
 
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Net;
-using System.Text;
-using System.Threading.Tasks;
-using Microsoft.Contests.Bop.Participants.Magik.Contract;
+using Microsoft.Contests.Bop.Participants.Magik.Academic.Contract;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
 
-namespace Microsoft.Contests.Bop.Participants.Magik
+namespace Microsoft.Contests.Bop.Participants.Magik.Academic
 {
     partial class AcademicSearchClient
     {

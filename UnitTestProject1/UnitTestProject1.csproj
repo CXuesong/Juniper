@@ -56,7 +56,7 @@
     <Compile Include="AcademicSearchClientTests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="TestUtility.cs" />
-    <Compile Include="GraphTests.cs" />
+    <Compile Include="DirectedGraphTests.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\MAGIK\MAGIK.csproj">
