@@ -23,6 +23,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
 
         protected KgNode(long id, string name)
         {
+            Debug.Assert(id != 0);
             Id = id;
             Name = name;
         }
@@ -118,6 +119,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
 
         /// <summary>
         /// 异步枚举由与此节点相连的邻节点。使用节点对来表示边的指向。
+        /// （除了反向引用节点以外，因为这样的节点可能会很多。）
         /// </summary>
         public override async Task<ICollection<KgNodePair>> GetAdjacentNodesAsync()
         {
@@ -134,14 +136,38 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                 if (er.Entities.Count != 1)
                     Logging.Trace(this, "Id 请求返回的实体不唯一。");
                 nodes = ParseEntity(er.Entities[0]);
-                return nodes;
             }
+            return nodes;
+        }
+
+        /// <summary>
+        /// 异步估计此文章的被引用次数。（10%误差）
+        /// </summary>
+        public Task<int> EstimateBackReferenceEdgesCountAsync()
+        {
+            return GlobalServices.ASClient.EstimateEvaluationCountAsync(
+                SearchExpressionBuilder.ReferenceIdContains(Id), PAPER_MAX_CITED);
+        }
+
+        /// <summary>
+        /// 异步判断文章的被引用次数是否大于某一数值。
+        /// </summary>
+        public Task<bool> IsBackReferenceEdgesCountGreaterThanAsync(int rhs)
+        {
+            return GlobalServices.ASClient.IsEvaluationCountGreaterThanAsync(
+                SearchExpressionBuilder.ReferenceIdContains(Id), rhs);
+        }
+
+        /// <summary>
+        /// 获取引用到此论文的所有节点。
+        /// </summary>
+        public async Task<ICollection<KgNodePair>> GetBackReferenceEdges()
+        {
             var backReferenceQueryTask = GlobalServices.ASClient.EvaluateAsync(
                 SearchExpressionBuilder.ReferenceIdContains(Id), PAPER_MAX_CITED);
             // Id -> *Id (RId)
             var er1 = await backReferenceQueryTask;
-            nodes.AddRange(er1.Entities.Select(et => new KgNodePair(new PaperNode(et), this)));
-            return loadedNodes;
+            return er1.Entities.Select(et => new KgNodePair(new PaperNode(et), this)).ToList();
         }
     }
 
@@ -192,7 +218,8 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             //      这个作者协作的其他作者的机构信息。
             var affiliations = er.Entities
                 .Select(et => et.Authors.First(au => au.Id == this.Id))
-                .Distinct(AuthorAffiliationComparer.Default);
+                .Distinct(AuthorAffiliationComparer.Default)
+                .Where(au => au.AffiliationId != null);
             foreach (var af in affiliations)
             {
                 var p = new KgNodePair(this, new AffiliationNode(af));
@@ -213,7 +240,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         /// </summary>
         public const int AFFILIATION_MAX_PAPERS = 100000;
 
-        public AffiliationNode(Author author) : base(author.AffiliationId, author.AffiliationName)
+        public AffiliationNode(Author author) : base(author.AffiliationId.Value, author.AffiliationName)
         {
         }
 

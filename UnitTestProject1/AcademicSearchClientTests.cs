@@ -87,5 +87,17 @@ namespace UnitTestProject1
                 Trace.WriteLine(entity);
             }
         }
+
+        [TestMethod]
+        public void ASClientTestMethod4EstimateCount()
+        {
+            const int maxCount = 100000;
+            var client = GlobalServices.ASClient;
+            var est = TestUtility.AwaitSync(client.EstimateEvaluationCountAsync(
+                "Composite(AA.AfN=='microsoft')", maxCount, 0.01f));
+            Trace.WriteLine($"{est} Entities.");
+            Assert.IsTrue(est <= maxCount);
+            Assert.IsTrue(est >= 23200);
+        }
     }
 }

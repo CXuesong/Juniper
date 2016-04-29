@@ -12,14 +12,14 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic.Contract
         [JsonProperty("AuId")]
         public long Id { get; set; }
 
-        /// <summary>
-        /// （可选）
-        /// </summary>
         [JsonProperty("AfN")]
         public string AffiliationName { get; set; }
 
+        /// <summary>
+        /// （可选）（作者有可能不属于任何组织。）
+        /// </summary>
         [JsonProperty("AfId")]
-        public long AffiliationId { get; set; }
+        public long? AffiliationId { get; set; }
 
         /// <summary>
         /// 返回表示当前对象的字符串。

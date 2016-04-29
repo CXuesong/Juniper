@@ -25,9 +25,11 @@
 //
 
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Net;
 using System.Runtime.ExceptionServices;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Contests.Bop.Participants.Magik.Academic.Contract;
 using Newtonsoft.Json;
@@ -46,16 +48,21 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
 
         private async Task<T> SendAsync<T>(WebRequest request)
         {
-            queryCounter++;
+            Interlocked.Increment(ref queryCounter);
+            var sw = Stopwatch.StartNew();
             try
             {
                 var response = await request.GetResponseAsync();
-                return ProcessAsyncResponse<T>((HttpWebResponse)response);
+                return ProcessAsyncResponse<T>((HttpWebResponse) response);
             }
             catch (Exception e)
             {
                 HandleException(e);
                 return default(T);
+            }
+            finally
+            {
+                Interlocked.Add(ref queryTimeMs, sw.ElapsedMilliseconds);
             }
         }
 

@@ -11,13 +11,14 @@ namespace Microsoft.Contests.Bop.Participants.Magik
 
         public static void Enter(object obj, object param = null, [CallerMemberName] string memberName = null)
         {
-            source.TraceEvent(TraceEventType.Start, 10,
+            //source.Switch = source.Switch;
+            source.TraceEvent(TraceEventType.Verbose, 10,
                 $"{ToString(obj)}.{memberName} <| {param}");
         }
 
         public static void Exit(object obj, string result = null, [CallerMemberName] string memberName = null)
         {
-            source.TraceEvent(TraceEventType.Stop, 11,
+            source.TraceEvent(TraceEventType.Verbose, 11,
                 $"{ToString(obj)}.{memberName} -> {result}");
         }
 

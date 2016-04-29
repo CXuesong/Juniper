@@ -26,7 +26,7 @@ namespace UnitTestProject1
             }
             Trace.Unindent();
             a.TraceStatistics();
-            a.TraceGraph();
+            //a.TraceGraph();
             if (assertPathExists) Assert.AreNotEqual(0, paths.Count);
             foreach (var p in paths)
             {
@@ -86,6 +86,23 @@ namespace UnitTestProject1
             AssertPathExists(paths, 1982462162, 2057034832, 676500258);
             // 1290206253: Microsoft
             AssertPathExists(paths, 1982462162, 1290206253, 676500258);
+        }
+
+        /// <summary>
+        /// 2-Hop Id - Id （被多次引用）
+        /// </summary>
+        [TestMethod]
+        public void AnalyzerTestMethodMedium1()
+        {
+            // 2128366083: resolution limit in community detection
+            // 2112090702: collective dynamics of small world network
+            var paths = FindPaths(2128366083, 2112090702, true);
+            // 2164928285: uncovering the overlapping community structure of complex networks in nature and society
+            AssertPathExists(paths, 2128366083, 2164928285, 2112090702);
+            // Other papers
+            AssertPathExists(paths, 2128366083, 2148606196, 2112090702);
+            AssertPathExists(paths, 2128366083, 2153624566, 2112090702);
+            AssertPathExists(paths, 2128366083, 2018045523, 2112090702);
         }
     }
 }

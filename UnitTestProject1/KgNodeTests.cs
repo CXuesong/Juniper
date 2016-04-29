@@ -86,7 +86,7 @@ namespace UnitTestProject1
         /// <summary>
         /// 对 AffiliationNode 进行测试。
         /// </summary>
-        [TestMethod]
+        //[TestMethod]
         public void KgNodeTestMethod3()
         {
             // 1290206253: Microsoft

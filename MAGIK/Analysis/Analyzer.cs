@@ -28,7 +28,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         /// <summary>
         /// 节点的状态标志。
         /// </summary>
-        private enum NodeStatusFlag : byte
+        private enum ExplorationStatus : byte
         {
             /// <summary>
             /// 节点未被探索。
@@ -37,8 +37,12 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             /// <summary>
             /// 这是探索过程的中间状态。仅在 Explore 函数调用完成前，部分节点会位于此状态。
             /// </summary>
-            Exploring,
-            Explored
+            Exploring = 1,
+            Explored = 2,
+            /// <summary>
+            /// 经过判断决定不要探索。可能是因为边的数量太多。
+            /// </summary>
+            DoNotExplore = 3,
         }
 
         private class NodeStatus
@@ -47,7 +51,20 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             // 在 DEBUG 模式下，完全信息包括节点的名称和此节点的邻节点（保存在 Graph 中，
             //      但很可能不在 exploredNodes 中，因为这些邻节点还没有被探索）。
             // 在 RELEASE 模式下，完全信息仅包括节点的邻节点。
-            public NodeStatusFlag Flag { get; set; }
+            public ExplorationStatus BasicExplorationStatus { get; set; }
+
+            public ExplorationStatus PaperBackReferenceExplorationStatus { get; set; }
+
+            public int PaperBackReferenceEstimation { get; set; }
+
+            //public long PrecedingNode { get; set; }
+
+            ///// <summary>
+            ///// 由源点到此点的步数。
+            ///// </summary>
+            //public sbyte Steps { get; set; }
+
+            public object SyncLock { get;  } = new object();
         }
 
         /// <summary>
@@ -105,10 +122,10 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         private async Task ExploreAsync(long id)
         {
             var s = GetStatus(id);
-            lock (s)
+            lock (s.SyncLock)
             {
-                if (s.Flag != NodeStatusFlag.Unexplored) return;
-                s.Flag = NodeStatusFlag.Exploring;
+                if (s.BasicExplorationStatus != ExplorationStatus.Unexplored) return;
+                s.BasicExplorationStatus = ExplorationStatus.Exploring;
             }
             var node = nodes[id];
             Logging.Enter(this, node);
@@ -120,8 +137,43 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                 RegisterNode(an.Node2);
                 graph.Add(an.Node1.Id, an.Node2.Id);
             }
-            s.Flag = NodeStatusFlag.Explored;
+            s.BasicExplorationStatus = ExplorationStatus.Explored;
             Logging.Exit(this);
+        }
+
+        /// <summary>
+        /// 如果指定的节点尚未探索，则探索此节点。
+        /// </summary>
+        private async Task ExplorePaperBackReferencesAsync(long id)
+        {
+            var s = GetStatus(id);
+            lock (s.SyncLock)
+            {
+                if (s.PaperBackReferenceExplorationStatus != ExplorationStatus.Unexplored)
+                    return;
+                s.PaperBackReferenceExplorationStatus = ExplorationStatus.Exploring;
+            }
+            var node = (PaperNode) nodes[id];
+            Logging.Enter(this, node);
+            var backRefTooMany = await node.IsBackReferenceEdgesCountGreaterThanAsync(PAPER_BACKREFERENCE_THRESHOLD);
+            if (!backRefTooMany)
+            {
+                var adj = await node.GetBackReferenceEdges();
+                // an: Adjacent Node
+                foreach (var an in adj)
+                {
+                    RegisterNode(an.Node1);
+                    RegisterNode(an.Node2);
+                    graph.Add(an.Node1.Id, an.Node2.Id);
+                }
+                s.PaperBackReferenceExplorationStatus = ExplorationStatus.Explored;
+                Logging.Exit(this, "Explored");
+            }
+            else
+            {
+                s.PaperBackReferenceExplorationStatus = ExplorationStatus.DoNotExplore;
+                Logging.Exit(this, "DoNotExplore");
+            }
         }
 
         /// <summary>

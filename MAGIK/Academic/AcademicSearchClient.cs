@@ -38,8 +38,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
         /// </summary>
         private string _subscriptionKey;
 
-        private static readonly TraceSource traceSource =
-            new TraceSource("Magik.Academic");
+        //private static readonly TraceSource traceSource = new TraceSource("Magik.Academic");
 
         /// <summary>
         /// 初始化一个新的 <see cref="VisionServiceClient"/> 实例。
@@ -90,10 +89,11 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
         }
 
         #region 统计信息
-
+#if TRACE
         private long queryCounter = 0;
         private int _PagingSize = 1000;
-
+        private long queryTimeMs = 0;
+#endif
         #endregion
 
         /// <summary>
@@ -118,14 +118,13 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
         public async Task<EvaluationResult> EvaluateAsync(string expression, int count, int offset,
             string orderBy, string attributes)
         {
-            traceSource.TraceEvent(TraceEventType.Verbose, 0, "Evaluate:{0}", expression);
+            Logging.Enter(this, $"{expression}, ({offset},{offset + count}]");
             var requestUrl =
                 $"{ServiceHostUrl}/evaluate?expr={expression}&model=latest&count={count}&offset={offset}&orderby={orderBy}&attributes={attributes ?? EvaluationDefaultAttributes}{QuerySuffix}";
             var request = WebRequest.Create(requestUrl);
             InitializeHeader(request, "GET");
             var result = await SendAsync<EvaluationResult>(request);
-            traceSource.TraceEvent(TraceEventType.Verbose, 0, "Evaluate:{0} -> {1} Entities", expression,
-                result?.Entities?.Count);
+            Logging.Exit(this, $"{result?.Entities?.Count} Entity");
             return result;
         }
 
@@ -145,14 +144,13 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
             return EvaluateAsync(expression, count, null, attributes);
         }
 
-
         /// <summary>
         /// 异步计算查询表达式，并进行学术文献的检索。启用自动分页。
         /// </summary>
         public async Task<EvaluationResult> EvaluateAsync(string expression, int count, string orderBy, string attributes)
         {
             if (count < PagingSize) return await EvaluateAsync(expression, count, 0, orderBy, attributes);
-            traceSource.TraceEvent(TraceEventType.Verbose, 0, "Evaluate:{0}, Count<={1}", expression, count);
+            Logging.Enter(this, $"{expression}, [1,{count}] Paged");
             var results = new List<Entity>();
             bool noMoreResults = false;
             for (int offset = 0; offset < count; offset += PagingSize)
@@ -166,21 +164,55 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
                     break;
                 }
             }
-            if (!noMoreResults)
-            {
-                traceSource.TraceEvent(TraceEventType.Verbose, 0, "Evaluate:{0} -> {1} Entities.", expression,
-                    results.Count);
-            }
-            else
-            {
-                traceSource.TraceEvent(TraceEventType.Warning, 0, "Evaluate:{0} -> {1} Entities, Truncated.", expression,
-                    results.Count);
-            }
+            Logging.Exit(this, $"{results.Count} Entity {(noMoreResults ? "" : " Truncated")}");
             return new EvaluationResult
             {
                 Expression = expression,
                 Entities = results
             };
+        }
+
+        /// <summary>
+        /// 异步计算查询表达式，估计结果的数量。允许 10% 的估计误差。
+        /// </summary>
+        public Task<int> EstimateEvaluationCountAsync(string expression, int maxCount)
+        {
+            return EstimateEvaluationCountAsync(expression, maxCount, 0.1f);
+        }
+
+        /// <summary>
+        /// 异步计算查询表达式，估计结果的数量。
+        /// </summary>
+        public async Task<int> EstimateEvaluationCountAsync(string expression, int maxCount, float precision)
+        {
+            if (maxCount < 0) throw new ArgumentOutOfRangeException(nameof(maxCount));
+            if (precision <= 0) throw new ArgumentOutOfRangeException(nameof(precision));
+            Logging.Enter(this, expression);
+            int min = 0, max = maxCount;
+            var mid = (max + min)/2;
+            while ((max - min) / (float)mid > precision)
+            {
+                var er = await EvaluateAsync(expression, 1, mid, "");
+                if (er.Entities.Count > 0)
+                    min = mid;
+                else
+                    max = mid;
+                mid = (max + min) / 2;
+            }
+            Logging.Exit(this, mid.ToString());
+            return mid;
+        }
+
+        /// <summary>
+        /// 异步判断某表达式的查询结果数量是否多于 rhs 指定的数量。
+        /// </summary>
+        public async Task<bool> IsEvaluationCountGreaterThanAsync(string expression, int rhs)
+        {
+            Logging.Enter(this, expression);
+            var er = await EvaluateAsync(expression, 1, rhs, "");
+            var result = er.Entities.Count > 0;
+            Logging.Exit(this, (result ? ">" : "<=") + rhs);
+            return result;
         }
 
         private void InitializeHeader(WebRequest request, string method)
@@ -200,7 +232,10 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
         /// </summary>
         public void TraceStatistics()
         {
-            Trace.WriteLine($"Academic Search：{queryCounter}次查询。");
+#if TRACE
+            // 注意，此处使用 queryTime.TotalSeconds 是没有意义的。因为查询有可能并行。
+            Trace.WriteLine($"Academic Search：{queryCounter}次查询。平均{queryTimeMs/queryCounter}ms/次。");
+#endif
         }
     }
 }
