@@ -233,6 +233,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             RegisterNode(node1);
             RegisterNode(node2);
             // 开始搜索。
+
             var hops = await Task.WhenAll(FindHop12PathsAsync(node1, node2), 
                 FindHop3PathsAsync(node1, node2));
             // Possible multiple enumeration of IEnumerable

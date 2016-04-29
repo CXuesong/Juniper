@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using Microsoft.Contests.Bop.Participants.Magik.Academic.Contract;
@@ -18,25 +19,16 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
     /// </remarks>
     public partial class AcademicSearchClient
     {
-        /// <summary>
-        /// The analyze query
-        /// </summary>
+        // The analyze query
         private const string InterpretQuery = "interpret";
 
-        /// <summary>
-        /// The evaluate query
-        /// </summary>
+        // The evaluate query
         private const string EvaluateQuery = "evaluate";
 
-        /// <summary>
-        /// The subscription key name
-        /// </summary>
+        // The subscription key name
         private const string _subscriptionKeyName = "Ocp-Apim-Subscription-Key";
-
-        /// <summary>
-        /// The subscription key
-        /// </summary>
         private string _subscriptionKey;
+        private int _PagingSize = 1000;
 
         //private static readonly TraceSource traceSource = new TraceSource("Magik.Academic");
 
@@ -88,10 +80,14 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
             }
         }
 
+        /// <summary>
+        /// 并行提交分页请求时，并行的任务数量。
+        /// </summary>
+        public int ConcurrentPagingCount { get; set; } = 4;
+
         #region 统计信息
 #if TRACE
         private long queryCounter = 0;
-        private int _PagingSize = 1000;
         private long queryTimeMs = 0;
 #endif
         #endregion
@@ -153,16 +149,25 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
             Logging.Enter(this, $"{expression}, [1,{count}] Paged");
             var results = new List<Entity>();
             bool noMoreResults = false;
-            for (int offset = 0; offset < count; offset += PagingSize)
+            for (var offset = 0; offset < count; )
             {
-                var result = await EvaluateAsync(expression, PagingSize, offset, orderBy, attributes);
-                results.AddRange(result.Entities);
-                if (result.Entities.Count < PagingSize)
+                var sessionPages = Math.Min((count - offset)/PagingSize, ConcurrentPagingCount);
+                if (sessionPages == 0)
+                {
+                    // 此时应有 offset < count
+                    // 多读一页应该不会有问题吧。
+                    sessionPages = 1;
+                }
+                var result = await Task.WhenAll(Enumerable.Range(0, sessionPages).Select(i =>
+                    EvaluateAsync(expression, PagingSize, offset + i*PagingSize, orderBy, attributes)));
+                results.AddRange(result.SelectMany(er => er.Entities));
+                if (result.Any(er => er.Entities.Count < PagingSize))
                 {
                     // No more results.
                     noMoreResults = true;
                     break;
                 }
+                offset += sessionPages*PagingSize;
             }
             Logging.Exit(this, $"{results.Count} Entity {(noMoreResults ? "" : " Truncated")}");
             return new EvaluationResult

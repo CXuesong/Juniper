@@ -12,13 +12,13 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         /// <summary>
         /// 如果一篇文章的被引用次数超过此值，则认为文章被引用次数太多，需要调整搜索策略。
         /// </summary>
-        public const int PAPER_BACKREFERENCE_THRESHOLD = 10000;
+        public const int PAPER_BACKREFERENCE_THRESHOLD = 100000;
 
         private async Task<IEnumerable<KgNode[]>> FindHop12PathsAsync(KgNode node1, KgNode node2)
         {
             Debug.Assert(node1 != null);
             Debug.Assert(node2 != null);
-            var generalExploreTask = Task.WhenAll(ExploreAsync(node1), ExploreAsync(node2));
+            await Task.WhenAll(ExploreAsync(node1), ExploreAsync(node2));
             var paper1 = node1 as PaperNode;
             var paper2 = node2 as PaperNode;
             if (paper1 != null && paper2 != null)
@@ -38,7 +38,6 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                 // 否则，Id2 被引用次数比较少，可以从 Id2 反向推 Idr 。
                 // 此工作已经由 ExplorePaperBackReferencesAsync 做完了。
             }
-            await generalExploreTask;
             var paths = new List<KgNode[]>();
             var out1 = graph.AdjacentOutVertices(node1.Id);
             var in2 = graph.AdjacentInVertices(node2.Id);

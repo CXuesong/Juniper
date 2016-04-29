@@ -18,6 +18,17 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
         public static string EntityIdEquals(long id)
             => $"Id={id}";
 
+        /// <summary>
+        /// 要求实体 Id 是给定集合中的一个 Id 。ids 数量不应当超过 100 。
+        /// </summary>
+        public static string EntityIdIn(IEnumerable<long> ids)
+        {
+            if (ids == null) throw new ArgumentNullException(nameof(ids));
+            var count = ids.Count();
+            //return string.Join("Or(Id=", id)
+            throw  new NotImplementedException();
+        }
+
         public static string ReferenceIdContains(long id)
             => $"RId={id}";
 

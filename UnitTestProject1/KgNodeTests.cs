@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using Microsoft.Contests.Bop.Participants.Magik.Analysis;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -77,6 +78,12 @@ namespace UnitTestProject1
             var author2 = new AuthorNode(1982462162, "Jaime Teevan");
             var adj1 = TestUtility.AwaitSync(author1.GetAdjacentNodesAsync());
             var adj2 = TestUtility.AwaitSync(author2.GetAdjacentNodesAsync());
+            Trace.WriteLine($"{author1} : {adj1.Count} nodes.");
+            Trace.WriteLine($"\t{adj1.Count(p => p.Node2 is PaperNode)} papers");
+            Trace.WriteLine($"\t{adj1.Count(p => p.Node2 is AffiliationNode)} affiliations");
+            Trace.WriteLine($"{author2} : {adj2.Count} nodes.");
+            Trace.WriteLine($"\t{adj2.Count(p => p.Node2 is PaperNode)} papers");
+            Trace.WriteLine($"\t{adj2.Count(p => p.Node2 is AffiliationNode)} affiliations");
             // 150篇论文 + 4机构
             Assert.IsTrue(adj1.Count/2 >= 150 + 4);
             // 128篇论文 + 3机构

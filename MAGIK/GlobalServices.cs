@@ -24,6 +24,14 @@ namespace Microsoft.Contests.Bop.Participants.Magik
         public static bool ASUseUltimateKey { get; private set; } = false;
 
         /// <summary>
+        /// 在进行学术搜索时是否使用最小的请求属性集合，以期减少网络负载，提高性能。
+        /// </summary>
+        /// <remarks>
+        /// 请在 <see cref="InitializeConfidential" /> 的实现中设置此属性。
+        /// </remarks>
+        public static bool ASReleaseMode { get; private set; } = false;
+
+        /// <summary>
         /// 适用于 DEBUG 使用的 Academic Search 搜索要求返回的属性列表。
         /// </summary>
         /// <remarks>
@@ -63,7 +71,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik
         {
             var client = new AcademicSearchClient(AcademicSearchSubscriptionKey)
             {
-                EvaluationDefaultAttributes = DebugASEvaluationAttributes,
+                EvaluationDefaultAttributes = ASReleaseMode ? ReleaseASEvaluationAttributes: DebugASEvaluationAttributes,
                 UserAgent = "MAGIK/1.0 (Windows)",
                 Referer = "https://studentclub.msra.cn/bop2016/"
             };
