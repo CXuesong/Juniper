@@ -15,62 +15,81 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         /// <summary>
         /// 根据给定的两个节点，探索能够与这两个节点相连的中间结点集合。
         /// </summary>
-        private async Task ExploreInterceptionNodesAsync(KgNode node1, KgNode node2)
+        private async Task ExploreInterceptionNodesAsync(ICollection<KgNode> nodes1, KgNode node2)
         {
-            if (node1 == null) throw new ArgumentNullException(nameof(node1));
+            if (nodes1 == null) throw new ArgumentNullException(nameof(nodes1));
             if (node2 == null) throw new ArgumentNullException(nameof(node2));
+            if (nodes1.Count == 0) throw new ArgumentException(null, nameof(nodes1));
+            KgNode node1 = null;
+            PaperNode[] papers1 = null;
             // 在进行上下文相关探索之前，先对两个节点进行局部探索。
-            await Task.WhenAll(LocalExploreAsync(node1), LocalExploreAsync(node2));
-            var paper1 = node1 as PaperNode;
-            var paper2 = node2 as PaperNode;
-            Func<string, Task> ExploreFromPaper1References = (searchConstraint) =>
+            if (nodes1.Count == 1)
             {
-                var tasks = graph
-                    .AdjacentOutVertices(paper1.Id)
+                node1 = nodes1.First();
+                if (node1 is PaperNode)
+                    papers1 = new[] {(PaperNode) node1};
+                await Task.WhenAll(LocalExploreAsync(node1), LocalExploreAsync(node2));
+            }
+            else
+            {
+                papers1 = nodes1.Cast<PaperNode>().ToArray();
+                await Task.WhenAll(LocalExploreAsync(papers1),
+                    LocalExploreAsync(node2));
+            }
+            var paper2 = node2 as PaperNode;
+            Func<string, Task> ExploreFromPapers1References = searchConstraint =>
+            {
+                // 注意，我们是来做全局搜索的。像是 Id -> AuId -> Id
+                // 这种探索在局部探索阶段应该已经解决了。
+                Debug.Assert(papers1 != null);
+                var tasks = papers1.SelectMany(p1 => graph
+                    .AdjacentOutVertices(p1.Id))
+                    .Distinct()     // 注意，参考文献(或是作者)很可能会重复。
                     .Where(id3 => nodes[id3] is PaperNode)
                     .Partition(SEB.MaxChainedIdCount)
                     .Select(async id3s =>
                     {
+                        //TODO 在探索作者所有的文章时，这些文章的参考文献其实已经被探索过了。
+                        //在这里跳过这些节点即可。
                         var er = await GlobalServices.ASClient.EvaluateAsync(SEB.And(
                             SEB.EntityIdIn(id3s),
                             searchConstraint),
                             SEB.MaxChainedIdCount);
-                        foreach (var et in er.Entities)
+                        await Task.WhenAll(er.Entities.Select(async et =>
                         {
-                            RegisterNode(new PaperNode(et));
-                            // Id1 -> Id3
-                            // 注意，这里是单向边。
-                            RegisterEdge(paper1.Id, et.Id, false);
-                            // Id3 -> Id2
-                            // (Id3 <- ??Id2)
-                            RegisterEdge(et.Id, node2.Id, !(node2 is PaperNode));
-                        }
+                            var pn = new PaperNode(et);
+                            RegisterNode(pn);
+                            //Id1 -> Id3 已经在之前的局部探索处理过了。
+                            //但 Id3 节点往外还有很多尚未探索的关系。
+                            await LocalExploreAsync(pn);
+                        }));
                     });
                 return Task.WhenAll(tasks);
             };
             // 带有 作者/会议/期刊 等属性限制，搜索引用中含有 paper2 的论文 Id。
-            Func<string, int, Task> ExploreToPaper2WithAttributes = async (attributeConstraint, maxPapers) =>
-            {
-                var er = await GlobalServices.ASClient.EvaluateAsync(SEB.And(
-                    attributeConstraint,
-                    SEB.ReferenceIdContains(paper2.Id)),
-                    maxPapers);
-                foreach (var et in er.Entities)
+            Func<string, int, Task> ExploreToPaper2WithAttributes =
+                async (attributeConstraint, maxPapers) =>
                 {
-                    RegisterNode(new PaperNode(et));
-                    // ??Id1 <-> Id3
-                    Debug.Assert(!(node1 is PaperNode));
-                    RegisterEdge(node1.Id, et.Id, true);
-                    // Id3 -> Id2
-                    RegisterEdge(et.Id, paper2.Id, false);
-                }
-            };
+                    var er = await GlobalServices.ASClient.EvaluateAsync(SEB.And(
+                        attributeConstraint,
+                        SEB.ReferenceIdContains(paper2.Id)),
+                        maxPapers);
+                    foreach (var et in er.Entities)
+                    {
+                        RegisterNode(new PaperNode(et));
+                        // ??Id1 <-> Id3
+                        Debug.Assert(!(node1 is PaperNode));
+                        RegisterEdge(node1.Id, et.Id, true);
+                        // Id3 -> Id2
+                        RegisterEdge(et.Id, paper2.Id, false);
+                    }
+                };
             if (paper2 != null)
             {
-                if (paper1 != null)
+                if (papers1 != null)
                 {
                     // Id1 -> Id3 -> Id2
-                    await ExploreFromPaper1References(SEB.ReferenceIdContains(paper2.Id));
+                    await ExploreFromPapers1References(SEB.ReferenceIdContains(paper2.Id));
                 }
                 else if (node1 is AuthorNode)
                 {
@@ -101,10 +120,10 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             }
             else if (node2 is AuthorNode)
             {
-                if (paper1 != null)
+                if (papers1 != null)
                 {
                     // Id1 -> Id3 -> AA.AuId2
-                    await ExploreFromPaper1References(SEB.AuthorIdContains(node2.Id));
+                    await ExploreFromPapers1References(SEB.AuthorIdContains(node2.Id));
                 }
                 else if (node1 is AuthorNode)
                 {

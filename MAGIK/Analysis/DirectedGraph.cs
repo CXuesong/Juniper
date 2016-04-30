@@ -20,9 +20,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
     public class DirectedGraph<TVertex>
     {
         // Vertex, Adjacent Vertices
-        private readonly Dictionary<TVertex, VertexEntry> vertices = new Dictionary<TVertex, VertexEntry>();
-        // 保护线程安全性。
-        private ReaderWriterLockSlim instanceLock = new ReaderWriterLockSlim();
+        private readonly ConcurrentDictionary<TVertex, VertexEntry> vertices = new ConcurrentDictionary<TVertex, VertexEntry>();
         private int _EdgesCount = 0;
 
         //private static readonly ICollection<TVertex> EmptyVertices = new TVertex[0];
@@ -35,25 +33,13 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         public bool Add(TVertex vertex)
         {
             if (vertex == null) throw new ArgumentNullException(nameof(vertex));
-            instanceLock.EnterUpgradeableReadLock();
-            try
+            var inserted = false;
+            vertices.GetOrAdd(vertex, k =>
             {
-                if (vertices.ContainsKey(vertex)) return false;
-                instanceLock.EnterWriteLock();
-                try
-                {
-                    vertices.Add(vertex, new VertexEntry(vertex));
-                }
-                finally
-                {
-                    instanceLock.ExitWriteLock();
-                }
-                return true;
-            }
-            finally
-            {
-                instanceLock.ExitUpgradeableReadLock();
-            }
+                inserted = true;
+                return new VertexEntry(k);
+            });
+            return inserted;
         }
 
         /// <summary>
@@ -81,40 +67,32 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         {
             if (vertex1 == null) throw new ArgumentNullException(nameof(vertex1));
             if (vertex2 == null) throw new ArgumentNullException(nameof(vertex2));
-            if (vertices.Comparer.Equals(vertex1, vertex2))
+            if (EqualityComparer<TVertex>.Default.Equals(vertex1, vertex2))
                 throw new ArgumentException("不允许自环。");
             // 在此应用中不应当出现重边。
-            instanceLock.EnterUpgradeableReadLock();
+            var ve1 = GetVertexEntry(vertex1, !noVerticesCreation);
+            var ve2 = GetVertexEntry(vertex2, !noVerticesCreation);
+            ve1.SyncLock.EnterWriteLock();
             try
             {
-                var ve1 = GetVertexEntry(vertex1, !noVerticesCreation);
-                var ve2 = GetVertexEntry(vertex2, !noVerticesCreation);
-                ve1.SyncLock.EnterWriteLock();
-                try
-                {
-                    if (!ve1.AdjacentOutVertices.Add(vertex2))
-                        return false;
-                }
-                finally
-                {
-                    ve1.SyncLock.ExitWriteLock();
-                }
-                ve2.SyncLock.EnterWriteLock();
-                try
-                {
-                    ve2.AdjacentInVertices.Add(vertex1);
-                }
-                finally
-                {
-                    ve2.SyncLock.ExitWriteLock();
-                }
-                _EdgesCount++;
-                return true;
+                if (!ve1.AdjacentOutVertices.Add(vertex2))
+                    return false;
             }
             finally
             {
-                instanceLock.ExitUpgradeableReadLock();
+                ve1.SyncLock.ExitWriteLock();
             }
+            ve2.SyncLock.EnterWriteLock();
+            try
+            {
+                ve2.AdjacentInVertices.Add(vertex1);
+            }
+            finally
+            {
+                ve2.SyncLock.ExitWriteLock();
+            }
+            _EdgesCount++;
+            return true;
         }
 
         /// <summary>
@@ -129,17 +107,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         public ISet<TVertex> AdjacentInVertices(TVertex vertex)
         {
             if (vertex == null) throw new ArgumentNullException(nameof(vertex));
-            VertexEntry e;
-            instanceLock.EnterReadLock();
-            try
-            {
-                e = vertices[vertex];
-            }
-            finally
-            {
-                instanceLock.ExitReadLock();
-            }
-            return e.DuplicateAdjacentInVertices();
+            return vertices[vertex].DuplicateAdjacentInVertices();
         }
 
         /// <summary>
@@ -149,17 +117,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         public ISet<TVertex> AdjacentOutVertices(TVertex vertex)
         {
             if (vertex == null) throw new ArgumentNullException(nameof(vertex));
-            VertexEntry e;
-            instanceLock.EnterReadLock();
-            try
-            {
-                e = vertices[vertex];
-            }
-            finally
-            {
-                instanceLock.ExitReadLock();
-            }
-            return e.DuplicateAdjacentOutVertices();
+            return vertices[vertex].DuplicateAdjacentOutVertices();
         }
 
         /// <summary>
@@ -175,25 +133,11 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         private VertexEntry GetVertexEntry(TVertex vertex, bool allowCreation)
         {
             if (vertex == null) throw new ArgumentNullException(nameof(vertex));
-            Debug.Assert(instanceLock.IsUpgradeableReadLockHeld);
-            Debug.Assert(!instanceLock.IsWriteLockHeld);
-            VertexEntry e;
             // Get or Create
-            if (!vertices.TryGetValue(vertex, out e))
-            {
-                if (!allowCreation) throw new KeyNotFoundException();
-                e = new VertexEntry(vertex);
-                instanceLock.EnterWriteLock();
-                try
-                {
-                    vertices.Add(vertex, e);
-                }
-                finally
-                {
-                    instanceLock.ExitWriteLock();
-                }
-            }
-            return e;
+            if (allowCreation)
+                return vertices.GetOrAdd(vertex, k => new VertexEntry(k));
+            else
+                return vertices[vertex];
         }
 
         /// <summary>
@@ -203,11 +147,6 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         {
             return string.Join("\n", vertices.SelectMany(p =>
                 p.Value.AdjacentOutVertices.Select(v2 => $"{p.Key}, {v2}")));
-        }
-
-        ~DirectedGraph()
-        {
-            instanceLock?.Dispose();
         }
 
         /// <summary>

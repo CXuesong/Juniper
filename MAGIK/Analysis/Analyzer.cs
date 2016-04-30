@@ -9,6 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Contests.Bop.Participants.Magik.Academic;
 using Microsoft.Contests.Bop.Participants.Magik.Academic.Contract;
+using SEB = Microsoft.Contests.Bop.Participants.Magik.Academic.SearchExpressionBuilder;
 
 namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
 {
@@ -19,13 +20,13 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         private DirectedGraph<long> graph = new DirectedGraph<long>();
 
         // 保存已经发现的节点。
-        private Dictionary<long, KgNode> nodes = new Dictionary<long, KgNode>();
+        private ConcurrentDictionary<long, KgNode> nodes = new ConcurrentDictionary<long, KgNode>();
 
         // 保存节点的可变状态。
         // 注意 graph 和 exploredNodes 集合可以变化，但集合中的每个项目
         // 例如以 long 表示的节点编号，和每个 KgNode 实例的内容是不可变的。
         // 因此，使用 status 映射处理这些可变状态。
-        private Dictionary<long, NodeStatus> _Status = new Dictionary<long, NodeStatus>();
+        private ConcurrentDictionary<long, NodeStatus> status = new ConcurrentDictionary<long, NodeStatus>();
 
         /// <summary>
         /// 节点的状态标志。
@@ -181,13 +182,8 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         /// </summary>
         private NodeStatus GetStatus(long id)
         {
-            NodeStatus s;
-            if (!_Status.TryGetValue(id, out s))
-            {
-                s = new NodeStatus();
-                _Status.Add(id, s);
-            }
-            return s;
+            Debug.Assert(graph.Vertices.Contains(id));
+            return status.GetOrAdd(id, i => new NodeStatus());
         }
 
         /// <summary>
@@ -199,8 +195,8 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         private bool RegisterNode(KgNode node)
         {
             if (node == null) throw new ArgumentNullException(nameof(node));
-            KgNode nn;
-            if (nodes.TryGetValue(node.Id, out nn))
+            var nn = nodes.GetOrAdd(node.Id, node);
+            if (nn != node)
             {
                 // 此节点已经被发现
                 // 断言节点类型。
@@ -210,7 +206,6 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             }
             else
             {
-                nodes.Add(node.Id, node);
                 graph.Add(node.Id);
                 return true;
             }
@@ -247,6 +242,62 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             }
             s.MarkAsExplored(NodeStatus.LocalExploration);
             Logging.Exit(this, $"{newlyDiscoveredNodes} new nodes");
+        }
+
+        /// <summary>
+        /// 同时探索多个节点。适用于文章节点。
+        /// </summary>
+        private async Task LocalExploreAsync(ICollection<PaperNode> nodes)
+        {
+            Debug.Assert(nodes != null);
+            if (nodes.Count == 0) return;
+            Logging.Enter(this, $"[{nodes.Count} nodes]");
+            var newlyDiscoveredNodes = 0;
+            try
+            {
+                var nodesToExplore = nodes
+                    .Where(n => GetStatus(n.Id).MarkAsExploring(NodeStatus.LocalExploration))
+                    .ToArray();
+                if (nodesToExplore.Length == 0) return;
+                var nodesToFetch = nodesToExplore.Where(n => n.IsStub);
+                var nodesFetched = nodesToExplore.Where(n => !n.IsStub);
+                var fetchTasks = nodesToFetch.Select(n => n.Id)
+                    .Partition(SEB.MaxChainedIdCount)
+                    .Select(async ids =>
+                    {
+                        // 假定 Partition 返回的是 IList / ICollection
+                        var idc = (ICollection<long>) ids;
+                        var er = await GlobalServices.ASClient.EvaluateAsync(
+                            SEB.EntityIdIn(idc),
+                            SEB.MaxChainedIdCount);
+                        if (er.Entities.Count < idc.Count)
+                            Logging.Warn(this, "批量查询实体 Id 时，返回结果数量不足。期望：{0}，实际：{1}。", idc.Count, er.Entities.Count);
+                        return er.Entities.Select(et => new PaperNode(et));
+                    }).ToArray();   // 先让网络通信启动起来。
+                Func<PaperNode, Task> explore = async paperNode =>
+                {
+                    Debug.Assert(this.nodes.ContainsKey(paperNode.Id));
+                    var adj = await paperNode.GetAdjacentNodesAsync();
+                    // an: Adjacent Node
+                    foreach (var an in adj)
+                    {
+                        if (RegisterNode(an)) newlyDiscoveredNodes++;
+                        RegisterEdge(an.Id, an.Id, !(an is PaperNode));
+                    }
+                    // 标记为“已经探索过”。
+                    GetStatus(paperNode.Id).MarkAsExplored(NodeStatus.LocalExploration);
+                };
+                //然后处理这些已经在本地的节点。
+                await Task.WhenAll(nodesFetched.Select(explore));
+                //最后处理刚刚下载下来的节点。
+                await Task.WhenAll((await Task.WhenAll(fetchTasks))
+                    .SelectMany(papers => papers)
+                    .Select(explore));
+            }
+            finally
+            {
+                Logging.Exit(this, $"{newlyDiscoveredNodes} new nodes");
+            }
         }
 
         /// <summary>

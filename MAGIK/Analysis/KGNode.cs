@@ -158,6 +158,11 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         }
 
         /// <summary>
+        /// 判断此节点是否为仅包含论文 Id，不包含其它任何信息的存根。
+        /// </summary>
+        public bool IsStub => loadedNodes == null;
+
+        /// <summary>
         /// 对于由 Entity 生成的 PaperNode ，直接获取本地缓存中的作者信息。
         /// </summary>
         public IEnumerable<AuthorNode> Authors
