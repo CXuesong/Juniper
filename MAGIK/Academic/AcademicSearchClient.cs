@@ -220,6 +220,14 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
             return result;
         }
 
+        /// <summary>
+        /// 异步判断某表达式是否有查询结果。
+        /// </summary>
+        public Task<bool> EvaluationHasResult(string expression)
+        {
+            return IsEvaluationCountGreaterThanAsync(expression, 0);
+        }
+
         private void InitializeHeader(WebRequest request, string method)
         {
             request.Headers[_subscriptionKeyName] = _subscriptionKey;

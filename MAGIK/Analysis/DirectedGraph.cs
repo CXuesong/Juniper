@@ -1,14 +1,16 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Threading;
 
 namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
 {
     /// <summary>
-    /// 表示一个泛型的有向图。
+    /// 表示一个线程安全的泛型有向图。
     /// </summary>
     /// <remarks>
     /// 有向图的节点可以包含任何信息，由 <typeparamref name="TVertex"/> 指定其类型。
@@ -19,6 +21,8 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
     {
         // Vertex, Adjacent Vertices
         private readonly Dictionary<TVertex, VertexEntry> vertices = new Dictionary<TVertex, VertexEntry>();
+        // 保护线程安全性。
+        private ReaderWriterLockSlim instanceLock = new ReaderWriterLockSlim();
         private int _EdgesCount = 0;
 
         //private static readonly ICollection<TVertex> EmptyVertices = new TVertex[0];
@@ -31,9 +35,25 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         public bool Add(TVertex vertex)
         {
             if (vertex == null) throw new ArgumentNullException(nameof(vertex));
-            if (vertices.ContainsKey(vertex)) return false;
-            vertices.Add(vertex, new VertexEntry(vertex));
-            return true;
+            instanceLock.EnterUpgradeableReadLock();
+            try
+            {
+                if (vertices.ContainsKey(vertex)) return false;
+                instanceLock.EnterWriteLock();
+                try
+                {
+                    vertices.Add(vertex, new VertexEntry(vertex));
+                }
+                finally
+                {
+                    instanceLock.ExitWriteLock();
+                }
+                return true;
+            }
+            finally
+            {
+                instanceLock.ExitUpgradeableReadLock();
+            }
         }
 
         /// <summary>
@@ -64,13 +84,37 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             if (vertices.Comparer.Equals(vertex1, vertex2))
                 throw new ArgumentException("不允许自环。");
             // 在此应用中不应当出现重边。
-            var ve1 = GetVertexEntry(vertex1, !noVerticesCreation);
-            var ve2 = GetVertexEntry(vertex2, !noVerticesCreation);
-            if (!ve1.AdjacentOutVertices.Add(vertex2))
-                return false;
-            ve2.AdjacentInVertices.Add(vertex1);
-            _EdgesCount++;
-            return true;
+            instanceLock.EnterUpgradeableReadLock();
+            try
+            {
+                var ve1 = GetVertexEntry(vertex1, !noVerticesCreation);
+                var ve2 = GetVertexEntry(vertex2, !noVerticesCreation);
+                ve1.SyncLock.EnterWriteLock();
+                try
+                {
+                    if (!ve1.AdjacentOutVertices.Add(vertex2))
+                        return false;
+                }
+                finally
+                {
+                    ve1.SyncLock.ExitWriteLock();
+                }
+                ve2.SyncLock.EnterWriteLock();
+                try
+                {
+                    ve2.AdjacentInVertices.Add(vertex1);
+                }
+                finally
+                {
+                    ve2.SyncLock.ExitWriteLock();
+                }
+                _EdgesCount++;
+                return true;
+            }
+            finally
+            {
+                instanceLock.ExitUpgradeableReadLock();
+            }
         }
 
         /// <summary>
@@ -82,20 +126,40 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         /// 获取指定节点的、指向指定点的邻节点。
         /// </summary>
         /// <exception cref="KeyNotFoundException">在当前图中找不到指定的节点。</exception>
-        public IReadOnlyCollection<TVertex> AdjacentInVertices(TVertex vertex)
+        public ISet<TVertex> AdjacentInVertices(TVertex vertex)
         {
             if (vertex == null) throw new ArgumentNullException(nameof(vertex));
-            return vertices[vertex].ReadonlyAdjacentInVertices;
+            VertexEntry e;
+            instanceLock.EnterReadLock();
+            try
+            {
+                e = vertices[vertex];
+            }
+            finally
+            {
+                instanceLock.ExitReadLock();
+            }
+            return e.DuplicateAdjacentInVertices();
         }
 
         /// <summary>
         /// 获取指定节点的、由指定点指向的邻节点。
         /// </summary>
         /// <exception cref="KeyNotFoundException">在当前图中找不到指定的节点。</exception>
-        public IReadOnlyCollection<TVertex> AdjacentOutVertices(TVertex vertex)
+        public ISet<TVertex> AdjacentOutVertices(TVertex vertex)
         {
             if (vertex == null) throw new ArgumentNullException(nameof(vertex));
-            return vertices[vertex].ReadonlyAdjacentOutVertices;
+            VertexEntry e;
+            instanceLock.EnterReadLock();
+            try
+            {
+                e = vertices[vertex];
+            }
+            finally
+            {
+                instanceLock.ExitReadLock();
+            }
+            return e.DuplicateAdjacentOutVertices();
         }
 
         /// <summary>
@@ -111,13 +175,23 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         private VertexEntry GetVertexEntry(TVertex vertex, bool allowCreation)
         {
             if (vertex == null) throw new ArgumentNullException(nameof(vertex));
+            Debug.Assert(instanceLock.IsUpgradeableReadLockHeld);
+            Debug.Assert(!instanceLock.IsWriteLockHeld);
             VertexEntry e;
             // Get or Create
             if (!vertices.TryGetValue(vertex, out e))
             {
                 if (!allowCreation) throw new KeyNotFoundException();
                 e = new VertexEntry(vertex);
-                vertices.Add(vertex, e);
+                instanceLock.EnterWriteLock();
+                try
+                {
+                    vertices.Add(vertex, e);
+                }
+                finally
+                {
+                    instanceLock.ExitWriteLock();
+                }
             }
             return e;
         }
@@ -131,6 +205,11 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                 p.Value.AdjacentOutVertices.Select(v2 => $"{p.Key}, {v2}")));
         }
 
+        ~DirectedGraph()
+        {
+            instanceLock?.Dispose();
+        }
+
         /// <summary>
         /// 用于在字典中保存节点的附加信息，如邻接表。
         /// </summary>
@@ -140,11 +219,24 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
 
             public HashSet<TVertex> AdjacentOutVertices { get; }
 
-            #region 用于向外部公开的“只读”集合
+            public ReaderWriterLockSlim SyncLock { get; } = new ReaderWriterLockSlim();
 
-            public IReadOnlyCollection<TVertex> ReadonlyAdjacentInVertices { get; }
+            #region 用于向外部公开的集合复制逻辑
 
-            public IReadOnlyCollection<TVertex> ReadonlyAdjacentOutVertices { get; }
+            public ISet<TVertex> DuplicateAdjacentInVertices()
+            {
+                SyncLock.EnterReadLock();
+                var set = AdjacentInVertices.Clone();
+                SyncLock.ExitReadLock();
+                return set;
+            }
+            public ISet<TVertex> DuplicateAdjacentOutVertices()
+            {
+                SyncLock.EnterReadLock();
+                var set = AdjacentOutVertices.Clone();
+                SyncLock.ExitReadLock();
+                return set;
+            }
 
             #endregion
 
@@ -152,12 +244,13 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             public VertexEntry(TVertex vertex)
             {
                 // 目前没有在 VertexEntry 中保存 vertex 的必要性。
-                // 只是为结构体选择一个不同的重载而已。
-                // TODO 获取 HashSet 的只读包装，即真正的 只读 集合。
                 AdjacentInVertices = new HashSet<TVertex>();
                 AdjacentOutVertices = new HashSet<TVertex>();
-                ReadonlyAdjacentInVertices = AdjacentInVertices;
-                ReadonlyAdjacentOutVertices = AdjacentOutVertices;
+            }
+
+            ~VertexEntry()
+            {
+                SyncLock?.Dispose();
             }
         }
     }

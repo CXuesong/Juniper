@@ -15,6 +15,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             Debug.Assert(node2 != null);
             var paths = new List<KgNode[]>();
             return paths;
+            /*
             await Task.WhenAll(ExploreAsync(node1), ExploreAsync(node2));
 
             // Id - Id - Id - Id
@@ -43,6 +44,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             }
 
             return paths;
+            */
         }
     }
 

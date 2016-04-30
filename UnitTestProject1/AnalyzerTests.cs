@@ -66,6 +66,7 @@ namespace UnitTestProject1
             // 2157025439: what do people ask their social networks and why a survey study of status message q a behavior
             // 2061503185: implicit feedback for inferring user preference a bibliography
             var paths = FindPaths(2157025439, 2061503185, true);
+            Assert.IsTrue(paths.Count >= 3 + 0);
             AssertPathExists(paths, 2157025439, 2122841972, 2061503185);
             // 1982462162: Jaime Teevan
             AssertPathExists(paths, 2157025439, 1982462162, 2061503185);
@@ -82,6 +83,7 @@ namespace UnitTestProject1
             // 1982462162: Jaime Teevan
             // 676500258: Susan T Dumais
             var paths = FindPaths(1982462162, 676500258, true);
+            Assert.IsTrue(paths.Count >= 39 + 0);
             // 2057034832: Understanding Temporal Query Dynamics
             AssertPathExists(paths, 1982462162, 2057034832, 676500258);
             // 1290206253: Microsoft
@@ -97,6 +99,7 @@ namespace UnitTestProject1
             // 2128366083: resolution limit in community detection
             // 2112090702: collective dynamics of small world network
             var paths = FindPaths(2128366083, 2112090702, true);
+            Assert.IsTrue(paths.Count >= 4 + 0);
             // 2164928285: uncovering the overlapping community structure of complex networks in nature and society
             AssertPathExists(paths, 2128366083, 2164928285, 2112090702);
             // Other papers

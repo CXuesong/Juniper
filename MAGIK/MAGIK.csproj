@@ -52,6 +52,7 @@
     <Compile Include="Academic\AcademicSearchClient1.cs" />
     <Compile Include="Academic\SearchExpressionBuilder.cs" />
     <Compile Include="Analysis\Analyzer.cs" />
+    <Compile Include="Analysis\Analyzer0.cs" />
     <Compile Include="Analysis\Analyzer12.cs" />
     <Compile Include="Analysis\Analyzer3.cs" />
     <Compile Include="Analysis\DirectedGraph.cs" />
@@ -63,6 +64,7 @@
     <Compile Include="Academic\Contract\ClientErrorContainer.cs" />
     <Compile Include="Academic\Contract\Entity.cs" />
     <Compile Include="Academic\Contract\EvaluationResult.cs" />
+    <Compile Include="Assumptions.cs" />
     <Compile Include="GlobalServices.cs" />
     <Compile Include="Logging.cs" />
     <Compile Include="Program.cs" />

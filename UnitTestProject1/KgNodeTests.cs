@@ -10,13 +10,13 @@ namespace UnitTestProject1
     [TestClass]
     public class KgNodeTests
     {
-        private void AssertNodeExists(IEnumerable<KgNodePair> nodes, long id)
+        private void AssertNodeExists(IEnumerable<KgNode> nodes, long id)
         {
-            Assert.IsTrue(nodes.Any(n => n.Node1.Id == id || n.Node2.Id == id),
+            Assert.IsTrue(nodes.Any(n => n.Id == id),
                 $"在节点集合[{nodes.Count()}]中找不到 Id 为 {id} 的节点。");
         }
 
-        private void AssertNodeExists(IEnumerable<KgNodePair> nodes, params long[] ids)
+        private void AssertNodeExists(IEnumerable<KgNode> nodes, params long[] ids)
         {
             foreach (var id in ids)
             {
@@ -37,7 +37,7 @@ namespace UnitTestProject1
             var adj1 = TestUtility.AwaitSync(paper1.GetAdjacentNodesAsync());
             var adj2 = TestUtility.AwaitSync(paper2.GetAdjacentNodesAsync());
             // Author + Conference/Journal + Field of Study + References
-            Assert.AreEqual(3*2 + 1*2 + 3*2 + 26, adj1.Count);
+            Assert.AreEqual(3 + 1 + 3 + 26, adj1.Count);
             // Authors
             AssertNodeExists(adj1, 2123314761, 1982462162, 2063838112);
             // FoS
@@ -50,7 +50,7 @@ namespace UnitTestProject1
                 1980908438, 2071373254, 2233354937, 2111141603,
                 2026569904, 1517685083, 2077150935, 1967873612,
                 2049614562, 2027253226, 1975410736);
-            Assert.AreEqual(2*2 + 1*2 + 3*2 + 31, adj2.Count);
+            Assert.AreEqual(2 + 1 + 3 + 31, adj2.Count);
             // Authors
             AssertNodeExists(adj2, 2180501019, 1982462162);
             // FoS
@@ -69,7 +69,7 @@ namespace UnitTestProject1
         /// <summary>
         /// 对 AuthorNode 进行测试。
         /// </summary>
-        [TestMethod]
+        [Obsolete("现在 AuthorNode 已经不负责作者对应论文的查找。")]
         public void KgNodeTestMethod2()
         {
             // 2123314761: Meredith Ringel Morris
@@ -79,21 +79,21 @@ namespace UnitTestProject1
             var adj1 = TestUtility.AwaitSync(author1.GetAdjacentNodesAsync());
             var adj2 = TestUtility.AwaitSync(author2.GetAdjacentNodesAsync());
             Trace.WriteLine($"{author1} : {adj1.Count} nodes.");
-            Trace.WriteLine($"\t{adj1.Count(p => p.Node2 is PaperNode)} papers");
-            Trace.WriteLine($"\t{adj1.Count(p => p.Node2 is AffiliationNode)} affiliations");
+            Trace.WriteLine($"\t{adj1.OfType<PaperNode>().Count()} papers");
+            Trace.WriteLine($"\t{adj1.OfType<AffiliationNode>().Count()} affiliations");
             Trace.WriteLine($"{author2} : {adj2.Count} nodes.");
-            Trace.WriteLine($"\t{adj2.Count(p => p.Node2 is PaperNode)} papers");
-            Trace.WriteLine($"\t{adj2.Count(p => p.Node2 is AffiliationNode)} affiliations");
+            Trace.WriteLine($"\t{adj2.OfType<PaperNode>().Count()} papers");
+            Trace.WriteLine($"\t{adj2.OfType<AffiliationNode>().Count()} affiliations");
             // 150篇论文 + 4机构
-            Assert.IsTrue(adj1.Count/2 >= 150 + 4);
+            Assert.IsTrue(adj1.Count >= 150 + 3);
             // 128篇论文 + 3机构
-            Assert.IsTrue(adj2.Count/2 >= 128 + 3);
+            Assert.IsTrue(adj2.Count >= 128 + 2);
         }
 
         /// <summary>
         /// 对 AffiliationNode 进行测试。
         /// </summary>
-        //[TestMethod]
+        [Obsolete("现在 AffiliationNode 已经不负责机构对应论文的查找。")]
         public void KgNodeTestMethod3()
         {
             // 1290206253: Microsoft

@@ -1,9 +1,11 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Contests.Bop.Participants.Magik.Academic;
 using Microsoft.Contests.Bop.Participants.Magik.Academic.Contract;
@@ -38,33 +40,140 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             /// 这是探索过程的中间状态。仅在 Explore 函数调用完成前，部分节点会位于此状态。
             /// </summary>
             Exploring = 1,
-            Explored = 2,
             /// <summary>
-            /// 经过判断决定不要探索。可能是因为边的数量太多。
+            /// 局部相关连接已经探索完毕。
             /// </summary>
-            DoNotExplore = 3,
+            Explored = 2,
         }
 
         private class NodeStatus
         {
+            /// <summary>
+            /// 节点的基础本地信息的探索情况。
+            /// </summary>
+            public static readonly object LocalExploration = new NamedObject("LocalExploration");
+            /// <summary>
+            /// 作者所写的所有论文的探索情况。
+            /// </summary>
+            public static readonly object AuthorPapersExploration = new NamedObject("AuthorPapersExploration");
+
             // 一个节点被探索，当且仅当在向服务器提交查询，并能够获得此节点的完全信息之后。
             // 在 DEBUG 模式下，完全信息包括节点的名称和此节点的邻节点（保存在 Graph 中，
             //      但很可能不在 exploredNodes 中，因为这些邻节点还没有被探索）。
             // 在 RELEASE 模式下，完全信息仅包括节点的邻节点。
-            public ExplorationStatus BasicExplorationStatus { get; set; }
+            private Dictionary<object, ExplorationStatus> explorationStatusDict 
+                = new Dictionary<object, ExplorationStatus>();
+            private Dictionary<object, TaskCompletionSource<bool>> explorationTaskCompletionSourceDict
+                = new Dictionary<object, TaskCompletionSource<bool>>();
+            private ReaderWriterLockSlim syncLock = new ReaderWriterLockSlim();
+            
+            /// <summary>
+            /// 如果当前节点处于 <see cref="ExplorationStatus.Unexplored"/> 状态，
+            /// 则尝试将节点置于 <see cref="ExplorationStatus.Exploring" /> 状态。
+            /// </summary>
+            /// <param name="domainKey">
+            /// 对此节点注册一个标志。用于表示此节点的某些关联
+            /// （如作者的所有论文，或是一篇文章的所有引用）
+            /// 已经被探索。
+            /// </param>
+            /// <returns>
+            /// 如果成功将节点置于 <see cref="ExplorationStatus.Exploring" /> 状态，
+            /// 则返回 true 。指示当前线程应当开始探索对应的节点。
+            /// </returns>
+            public bool MarkAsExploring(object domainKey)
+            {
+                if (domainKey == null) throw new ArgumentNullException(nameof(domainKey));
+                syncLock.EnterWriteLock();
+                ExplorationStatus s;
+                if (explorationStatusDict.TryGetValue(domainKey, out s))
+                {
+                    if (s != ExplorationStatus.Unexplored)
+                    {
+                        syncLock.ExitWriteLock();
+                        return false;
+                    }
+                }
+                explorationStatusDict[domainKey] = ExplorationStatus.Exploring;
+                syncLock.ExitWriteLock();
+                return true;
+            }
 
-            public ExplorationStatus PaperBackReferenceExplorationStatus { get; set; }
+            /// <summary>
+            /// 将当前节点标注为 <see cref="ExplorationStatus.Exploring" /> 状态。
+            /// 如果当前节点已经处于 <see cref="ExplorationStatus.Exploring" /> 状态，
+            /// 则会等待直到节点处于 <see cref="ExplorationStatus.Explored" /> 状态。
+            /// </summary>
+            /// <param name="domainKey"></param>
+            /// <returns>
+            /// 如果成功将节点置于 <see cref="ExplorationStatus.Exploring" /> 状态，
+            /// 则任务会返回 true 。指示当前线程应当开始探索对应的节点。否则，如果当前节点
+            /// 已经被探索，或正在探索，则任务会在探索结束后返回 false 。
+            /// </returns>
+            public Task<bool> MarkAsExploringOrUntilExplored(object domainKey)
+            {
+                if (domainKey == null) throw new ArgumentNullException(nameof(domainKey));
+                syncLock.EnterWriteLock();
+                ExplorationStatus s;
+                if (explorationStatusDict.TryGetValue(domainKey, out s))
+                {
+                    switch (s)
+                    {
+                        case ExplorationStatus.Unexplored:
+                            break;
+                        case ExplorationStatus.Explored:
+                            syncLock.ExitWriteLock();
+                            return Task.FromResult(false);
+                        case ExplorationStatus.Exploring:
+                            // Wait for exploration
+                            var tcs = explorationTaskCompletionSourceDict.GetOrCreate(domainKey);
+                            return tcs.Task;
+                    }
+                }
+                explorationStatusDict[domainKey] = ExplorationStatus.Exploring;
+                syncLock.ExitWriteLock();
+                return Task.FromResult(true);
+            }
 
-            public int PaperBackReferenceEstimation { get; set; }
+            /// <summary>
+            /// 如果当前节点处于 <see cref="ExplorationStatus.Exploring"/> 状态，
+            /// 则尝试将节点置于 <see cref="ExplorationStatus.Explored" /> 状态。
+            /// </summary>
+            public void MarkAsExplored(object domainKey)
+            {
+                if (domainKey == null) throw new ArgumentNullException(nameof(domainKey));
+                syncLock.EnterWriteLock();
+#if DEBUG
+                //Debug.Assert(explorationStatusDict[domainKey] == ExplorationStatus.Exploring);
+#endif
+                explorationStatusDict[domainKey] = ExplorationStatus.Explored;
+                var tcs = explorationTaskCompletionSourceDict.TryGetValue(domainKey);
+                if (tcs != null)
+                {
+                    // 为什么是 false ？ 参阅 MarkAsExploringOrUntilExplored 的返回值。
+                    tcs.SetResult(false);
+                    explorationTaskCompletionSourceDict.Remove(domainKey);
+                }
+                syncLock.ExitWriteLock();
+            }
 
-            //public long PrecedingNode { get; set; }
+            public ExplorationStatus GetExplorationStatus(object domainKey)
+            {
+                if (domainKey == null) throw new ArgumentNullException(nameof(domainKey));
+                syncLock.EnterReadLock();
+                ExplorationStatus s;
+                if (explorationStatusDict.TryGetValue(domainKey, out s))
+                {
+                    syncLock.ExitReadLock();
+                    return s;
+                }
+                syncLock.ExitReadLock();
+                return ExplorationStatus.Unexplored;
+            }
 
-            ///// <summary>
-            ///// 由源点到此点的步数。
-            ///// </summary>
-            //public sbyte Steps { get; set; }
-
-            public object SyncLock { get;  } = new object();
+            ~NodeStatus()
+            {
+                syncLock?.Dispose();
+            }
         }
 
         /// <summary>
@@ -108,72 +217,37 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         }
 
         /// <summary>
-        /// 如果指定的节点尚未探索，则探索此节点。
+        /// 注册一条边。
+        /// 注意，如果是单向边，则必定是 node1 --&gt; node2 。
         /// </summary>
-        private Task ExploreAsync(KgNode node)
+        private void RegisterEdge(long id1, long id2, bool biDirectional)
         {
-            Debug.Assert(node != null);
-            return ExploreAsync(node.Id);
+            graph.Add(id1, id2);
+            if (biDirectional) graph.Add(id2, id1);
         }
 
         /// <summary>
         /// 如果指定的节点尚未探索，则探索此节点。
         /// </summary>
-        private async Task ExploreAsync(long id)
+        private async Task<ICollection<KgNode>> LocalExploreAsync(KgNode node)
         {
-            var s = GetStatus(id);
-            lock (s.SyncLock)
-            {
-                if (s.BasicExplorationStatus != ExplorationStatus.Unexplored) return;
-                s.BasicExplorationStatus = ExplorationStatus.Exploring;
-            }
-            var node = nodes[id];
+            Debug.Assert(node != null);
+            var s = GetStatus(node.Id);
+            if (!await s.MarkAsExploringOrUntilExplored(NodeStatus.LocalExploration))
+                return new KgNode[0];
             Logging.Enter(this, node);
+            var newlyDiscoveredNodes = new List<KgNode>();
             var adj = await node.GetAdjacentNodesAsync();
             // an: Adjacent Node
             foreach (var an in adj)
             {
-                RegisterNode(an.Node1);
-                RegisterNode(an.Node2);
-                graph.Add(an.Node1.Id, an.Node2.Id);
+                if (RegisterNode(an))
+                    newlyDiscoveredNodes.Add(an);
+                RegisterEdge(node.Id, an.Id, !(an is PaperNode));
             }
-            s.BasicExplorationStatus = ExplorationStatus.Explored;
-            Logging.Exit(this);
-        }
-
-        /// <summary>
-        /// 如果指定的节点尚未探索，则探索此节点。
-        /// </summary>
-        private async Task ExplorePaperBackReferencesAsync(long id)
-        {
-            var s = GetStatus(id);
-            lock (s.SyncLock)
-            {
-                if (s.PaperBackReferenceExplorationStatus != ExplorationStatus.Unexplored)
-                    return;
-                s.PaperBackReferenceExplorationStatus = ExplorationStatus.Exploring;
-            }
-            var node = (PaperNode) nodes[id];
-            Logging.Enter(this, node);
-            var backRefTooMany = await node.IsBackReferenceEdgesCountGreaterThanAsync(PAPER_BACKREFERENCE_THRESHOLD);
-            if (!backRefTooMany)
-            {
-                var adj = await node.GetBackReferenceEdges();
-                // an: Adjacent Node
-                foreach (var an in adj)
-                {
-                    RegisterNode(an.Node1);
-                    RegisterNode(an.Node2);
-                    graph.Add(an.Node1.Id, an.Node2.Id);
-                }
-                s.PaperBackReferenceExplorationStatus = ExplorationStatus.Explored;
-                Logging.Exit(this, "Explored");
-            }
-            else
-            {
-                s.PaperBackReferenceExplorationStatus = ExplorationStatus.DoNotExplore;
-                Logging.Exit(this, "DoNotExplore");
-            }
+            s.MarkAsExplored(NodeStatus.LocalExploration);
+            Logging.Exit(this, $"{newlyDiscoveredNodes.Count} new nodes");
+            return newlyDiscoveredNodes;
         }
 
         /// <summary>

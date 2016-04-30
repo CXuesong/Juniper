@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
+using System.Reflection;
+using System.Runtime.Serialization;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -48,9 +50,37 @@ namespace Microsoft.Contests.Bop.Participants.Magik
             return val;
         }
 
+        public static TValue TryGetValue<TKey, TValue>(this IDictionary<TKey, TValue> dict, TKey key)
+        {
+            if (dict == null) throw new ArgumentNullException(nameof(dict));
+            TValue val;
+            if (dict.TryGetValue(key, out val)) return val;
+            return default(TValue);
+        }
+
         public static KeyValuePair<TKey, TValue> CreateKeyValuePair<TKey, TValue>(TKey key, TValue value)
         {
             return new KeyValuePair<TKey, TValue>(key, value);
+        }
+
+        /// <summary>
+        /// 将一个 <see cref="IEnumerable{T}"/> 按照固定的数量分组。
+        /// </summary>
+        public static IEnumerable<IEnumerable<T>> Partition<T>(this IEnumerable<T> source, int partitionSize)
+        {
+            if (source == null) throw new ArgumentNullException(nameof(source));
+            if (partitionSize <= 0) throw new ArgumentOutOfRangeException(nameof(partitionSize));
+            var partition = new List<T>(partitionSize);
+            foreach (var item in source)
+            {
+                partition.Add(item);
+                if (partition.Count == partitionSize)
+                {
+                    yield return partition;
+                    partition.Clear();
+                }
+            }
+            if (partition.Count > 0) yield return partition;
         }
     }
 
@@ -93,6 +123,81 @@ namespace Microsoft.Contests.Bop.Participants.Magik
         public override int GetHashCode()
         {
             return Key?.GetHashCode() ?? 0;
+        }
+    }
+
+    public class NamedObject
+    {
+        public string Name { get; }
+
+        public NamedObject(string name)
+        {
+            Name = name;
+        }
+
+        /// <summary>
+        /// 返回表示当前对象的字符串。
+        /// </summary>
+        /// <returns>
+        /// 表示当前对象的字符串。
+        /// </returns>
+        public override string ToString() => Name;
+    }
+
+    public static class HashSetExtensions
+    {
+        /// <summary>
+        /// 复制一个 <see cref="HashSet{T}"/> 。
+        /// </summary>
+        /// <remarks>
+        /// http://stackoverflow.com/questions/3927789/efficient-way-to-clone-a-hashsett
+        /// </remarks>
+        public static HashSet<T> Clone<T>(this HashSet<T> original)
+        {
+            if (original == null) throw new ArgumentNullException(nameof(original));
+            var clone = (HashSet<T>) FormatterServices.GetUninitializedObject(typeof (HashSet<T>));
+            Copy(Fields<T>.comparer, original, clone);
+            if (original.Count == 0)
+            {
+                Fields<T>.freeList.SetValue(clone, -1);
+            }
+            else
+            {
+                Fields<T>.count.SetValue(clone, original.Count);
+                Clone(Fields<T>.buckets, original, clone);
+                Clone(Fields<T>.slots, original, clone);
+                Copy(Fields<T>.freeList, original, clone);
+                Copy(Fields<T>.lastIndex, original, clone);
+                Copy(Fields<T>.version, original, clone);
+            }
+
+            return clone;
+        }
+
+        private static void Copy<T>(FieldInfo field, HashSet<T> source, HashSet<T> target)
+        {
+            field.SetValue(target, field.GetValue(source));
+        }
+
+        private static void Clone<T>(FieldInfo field, HashSet<T> source, HashSet<T> target)
+        {
+            field.SetValue(target, ((Array) field.GetValue(source)).Clone());
+        }
+
+        private static class Fields<T>
+        {
+            public static readonly FieldInfo freeList = GetFieldInfo("m_freeList");
+            public static readonly FieldInfo buckets = GetFieldInfo("m_buckets");
+            public static readonly FieldInfo slots = GetFieldInfo("m_slots");
+            public static readonly FieldInfo count = GetFieldInfo("m_count");
+            public static readonly FieldInfo lastIndex = GetFieldInfo("m_lastIndex");
+            public static readonly FieldInfo version = GetFieldInfo("m_version");
+            public static readonly FieldInfo comparer = GetFieldInfo("m_comparer");
+
+            static FieldInfo GetFieldInfo(string name)
+            {
+                return typeof (HashSet<T>).GetField(name, BindingFlags.Instance | BindingFlags.NonPublic);
+            }
         }
     }
 }
