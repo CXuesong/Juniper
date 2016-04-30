@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using Microsoft.Contests.Bop.Participants.Magik;
 using Microsoft.Contests.Bop.Participants.Magik.Analysis;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -104,6 +105,37 @@ namespace UnitTestProject1
             var adj2 = TestUtility.AwaitSync(affiliation2.GetAdjacentNodesAsync());
             Assert.IsTrue(adj1.Count/2 >= 1000);
             Assert.IsTrue(adj2.Count/2 >= 1000);
+        }
+
+        /// <summary>
+        /// 对 <see cref="KgNodeEqualityComparer"/> 进行测试。
+        /// </summary>
+        [TestMethod]
+        public void KgNodeTestMethod4()
+        {
+            var array1 = new KgNode[]
+            {
+                new PaperNode(10, null),
+                new AuthorNode(20, null),
+                new AffiliationNode(30, null),
+            };
+            var array2 = new KgNode[]
+            {
+                new AffiliationNode(10, null),
+                new AuthorNode(20, null),
+                new PaperNode(30, null),
+            };
+            var array3 = new KgNode[]
+            {
+                new PaperNode(10, null),
+                new AuthorNode(20, null),
+                new AffiliationNode(31, null),
+            };
+            var comparer = new ArrayEqualityComparer<KgNode>(KgNodeEqualityComparer.Default);
+            Trace.WriteLine($"Array1 HashCode = {comparer.GetHashCode(array1)}");
+            Trace.WriteLine($"Array2 HashCode = {comparer.GetHashCode(array2)}");
+            Assert.AreEqual(comparer.GetHashCode(array1), comparer.GetHashCode(array2));
+            Assert.IsTrue(comparer.Equals(array1, array2));
         }
     }
 }

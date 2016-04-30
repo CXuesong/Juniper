@@ -13,10 +13,9 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         {
             Debug.Assert(node1 != null);
             Debug.Assert(node2 != null);
+            Logging.Enter(this, $"{node1} -> {node2}");
             var paths = new List<KgNode[]>();
-            return paths;
-            /*
-            await Task.WhenAll(ExploreAsync(node1), ExploreAsync(node2));
+            /*await Task.WhenAll(ExploreAsync(node1), ExploreAsync(node2));
 
             // Id - Id - Id - Id
             // 先不考虑这种情况。
@@ -41,10 +40,9 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             foreach (var id4 in graph.AdjacentInVertices(node2.Id))
             {
                 
-            }
-
+            }*/
+            Logging.Exit(this, $"{paths.Count} paths");
             return paths;
-            */
         }
     }
 

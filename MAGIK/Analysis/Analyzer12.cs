@@ -18,6 +18,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         {
             Debug.Assert(node1 != null);
             Debug.Assert(node2 != null);
+            Logging.Enter(this, $"{node1} -> {node2}");
             await ExploreInterceptionNodesAsync(node1, node2);
             var paths = new List<KgNode[]>();
             var out1 = graph.AdjacentOutVertices(node1.Id);
@@ -27,6 +28,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             // 2-hop
             var commonNodes = out1.Intersect(in2);
             paths.AddRange(commonNodes.Select(cn => new[] {node1, nodes[cn], node2}));
+            Logging.Exit(this, $"{paths.Count} paths");
             return paths;
         }
     }

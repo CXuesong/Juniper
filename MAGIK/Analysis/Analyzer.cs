@@ -228,26 +228,61 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
 
         /// <summary>
         /// 如果指定的节点尚未探索，则探索此节点。
+        /// 如果其他线程正在探索此节点，则等待此节点探索完毕。
         /// </summary>
-        private async Task<ICollection<KgNode>> LocalExploreAsync(KgNode node)
+        private async Task LocalExploreAsync(KgNode node)
         {
             Debug.Assert(node != null);
             var s = GetStatus(node.Id);
             if (!await s.MarkAsExploringOrUntilExplored(NodeStatus.LocalExploration))
-                return new KgNode[0];
+                return;
             Logging.Enter(this, node);
-            var newlyDiscoveredNodes = new List<KgNode>();
+            var newlyDiscoveredNodes = 0;
             var adj = await node.GetAdjacentNodesAsync();
             // an: Adjacent Node
             foreach (var an in adj)
             {
-                if (RegisterNode(an))
-                    newlyDiscoveredNodes.Add(an);
+                if (RegisterNode(an)) newlyDiscoveredNodes++;
                 RegisterEdge(node.Id, an.Id, !(an is PaperNode));
             }
             s.MarkAsExplored(NodeStatus.LocalExploration);
-            Logging.Exit(this, $"{newlyDiscoveredNodes.Count} new nodes");
-            return newlyDiscoveredNodes;
+            Logging.Exit(this, $"{newlyDiscoveredNodes} new nodes");
+        }
+
+        /// <summary>
+        /// 异步探索作者的所有论文。
+        /// 如果其他线程正在探索此节点，则等待此节点探索完毕。
+        /// </summary>
+        private async Task ExploreAuthorPapersAsync(AuthorNode author)
+        {
+            // 探索 author 的所有论文。此处的探索还可以顺便确定 author 的所有组织。
+            if (!await GetStatus(author.Id).MarkAsExploringOrUntilExplored(NodeStatus.AuthorPapersExploration))
+                return;
+            foreach (var paper in await author.GetPapersAsync())
+            {
+                // AA.AuId1 <-> Id
+                RegisterNode(paper);
+                // 此处还可以注册 paper 的所有作者。
+                // 这样做的好处是，万一 author1 和 author2 同时写了一篇论文。
+                // 在这里就可以发现了。
+                await LocalExploreAsync(paper);
+                // 为作者 AA.AuId1 注册所有可能的机构。
+                // 这里比较麻烦，因为一个作者可以属于多个机构，所以
+                // 不能使用 LocalExploreAsync （会认为已经探索过。）
+                foreach (var pa in paper.Authors)
+                {
+                    // AA.AuId <-> AA.AfId
+                    // 其中必定包括
+                    // AA.AuId1 <-> AA.AfId3
+                    RegisterNode(pa);
+                    if (pa.Affiliation != null)
+                    {
+                        RegisterNode(pa.Affiliation);
+                        RegisterEdge(pa.Id, pa.Affiliation.Id, true);
+                    }
+                }
+            }
+            GetStatus(author.Id).MarkAsExplored(NodeStatus.AuthorPapersExploration);
         }
 
         /// <summary>
@@ -296,6 +331,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         /// </returns>
         public async Task<ICollection<KgNode[]>> FindPathsAsync(long id1, long id2)
         {
+            Logging.Enter(this, $"{id1} -> {id2}");
             // 先找到实体/作者再说。
             var nodes = await Task.WhenAll(GetEntityOrAuthorNodeAsync(id1),
                 GetEntityOrAuthorNodeAsync(id2));
@@ -308,12 +344,16 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             RegisterNode(node2);
             // 开始搜索。
 
-            var hops = await Task.WhenAll(FindHop12PathsAsync(node1, node2), 
+            var hops = await Task.WhenAll(FindHop12PathsAsync(node1, node2),
                 FindHop3PathsAsync(node1, node2));
             // Possible multiple enumeration of IEnumerable
             // I don't care
             // 因为 FindHop12PathsAsync 和 FindHop3PathsAsync 返回的其实都是 List 。
-            return hops.SelectMany(hop => hop).Distinct().ToArray();
+            var result = hops.SelectMany(hop => hop)
+                .Distinct(new ArrayEqualityComparer<KgNode>(KgNodeEqualityComparer.Default))
+                .ToArray();
+            Logging.Exit(this, $"{result} distinct paths");
+            return result;
         }
 
         /// <summary>

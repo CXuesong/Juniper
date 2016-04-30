@@ -114,34 +114,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                     // 注意到每个作者都会写很多论文
                     // 不论如何，现在尝试从 Id1 向 Id2 探索。
                     // 我们需要列出 Id1 的所有文献，以获得其曾经位于的所有组织。
-                    if (await GetStatus(author1.Id).MarkAsExploringOrUntilExplored(NodeStatus.AuthorPapersExploration))
-                    {
-                        foreach (var paper in await author1.GetPapersAsync())
-                        {
-                            // AA.AuId1 <-> Id
-                            RegisterNode(paper);
-                            // 此处还可以注册 paper 的所有作者。
-                            // 这样做的好处是，万一 author1 和 author2 同时写了一篇论文。
-                            // 在这里就可以发现了。
-                            await LocalExploreAsync(paper);
-                            // 为作者 AA.AuId1 注册所有可能的机构。
-                            // 这里比较麻烦，因为一个作者可以属于多个机构，所以
-                            // 不能使用 LocalExploreAsync （会认为已经探索过。）
-                            foreach (var author in paper.Authors)
-                            {
-                                // AA.AuId <-> AA.AfId
-                                // 其中必定包括
-                                // AA.AuId1 <-> AA.AfId3
-                                RegisterNode(author);
-                                if (author.Affiliation != null)
-                                {
-                                    RegisterNode(author.Affiliation);
-                                    RegisterEdge(author.Id, author.Affiliation.Id, true);
-                                }
-                            }
-                        }
-                        GetStatus(author1.Id).MarkAsExplored(NodeStatus.AuthorPapersExploration);
-                    }
+                    await ExploreAuthorPapersAsync(author1);
                     // AA.AuId1 <-> AA.AfId3 <-> AA.AuId2
                     var author2in = graph.AdjacentInVertices(node2.Id);
                     foreach (var afid in graph.AdjacentOutVertices(node1.Id).Where(id =>
