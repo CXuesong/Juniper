@@ -19,7 +19,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             Debug.Assert(node1 != null);
             Debug.Assert(node2 != null);
             Logging.Enter(this, $"{node1} -> {node2}");
-            await ExploreInterceptionNodesAsync(new[] {node1}, node2);
+            await ExploreInterceptionNodesAsync(node1, node2);
             var paths = new List<KgNode[]>();
             var out1 = graph.AdjacentOutVertices(node1.Id);
             var in2 = graph.AdjacentInVertices(node2.Id);

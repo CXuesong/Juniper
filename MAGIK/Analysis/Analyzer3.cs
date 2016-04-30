@@ -14,33 +14,44 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             Debug.Assert(node1 != null);
             Debug.Assert(node2 != null);
             Logging.Enter(this, $"{node1} -> {node2}");
+            // Notation
+            // Node1 -- Node3 -- Node4 -- Node2
             var paths = new List<KgNode[]>();
-            /*await Task.WhenAll(ExploreAsync(node1), ExploreAsync(node2));
-
-            // Id - Id - Id - Id
-            // 先不考虑这种情况。
-
-            // Id1 - Id3 - AA.AuId - Id2
-            // 从 Id1 出发，探索所有可能的 Id3 。
-            await Task.WhenAll(graph.AdjacentOutVertices(node1.Id)
-                .Select(id => nodes[id])
-                .OfType<PaperNode>()
-                .Select(ExploreAsync));
-
-            var id3Nodes = graph.AdjacentOutVertices(node1.Id);
-            var id4PredecessorsDict = new Dictionary<long, List<long>>();
-            foreach (var id3 in id3Nodes)
+            var paper1 = node1 as PaperNode;
+            var author1 = node1 as AuthorNode;
+            // 探索 node1
+            await LocalExploreAsync(node1);
+            if (paper1 != null)
             {
-                foreach (var id4 in id3Nodes)
-                {
-                    id4PredecessorsDict.GetOrCreate(id4).Add(id3);
-                }
+                // 手动探索 node1 之后的所有节点。
+                var nodes3 = graph.AdjacentOutVertices(node1.Id)
+                    .Select(id => nodes[id])
+                    .ToArray();
+                await ExploreInterceptionNodesAsync(nodes3, node2);
             }
-
+            else
+            {
+                // 在 FindPathsAsync 中应该已经可以保证 node1 是论文或作者 。
+                Debug.Assert(author1 != null);
+                await ExploreAuthorPapersAsync(author1);
+            }
+            // 从 Id1 出发，探索所有可能的 Id3 。
+            var id4PredecessorsDict = new Dictionary<long, List<long>>();
+            foreach (var id3 in graph.AdjacentOutVertices(node1.Id))
+            {
+                foreach (var id4 in graph.AdjacentOutVertices(id3))
+                    id4PredecessorsDict.GetOrAdd(id4).Add(id3);
+            }
             foreach (var id4 in graph.AdjacentInVertices(node2.Id))
             {
-                
-            }*/
+                var id3Nodes = id4PredecessorsDict.TryGetValue(id4);
+                if (id3Nodes != null)
+                {
+                    // 有路径！
+                    paths.AddRange(id3Nodes.Select(id3 =>
+                        new[] {node1, nodes[id3], nodes[id4], node2}));
+                }
+            }
             Logging.Exit(this, $"{paths.Count} paths");
             return paths;
         }

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -85,18 +86,21 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             {
                 if (domainKey == null) throw new ArgumentNullException(nameof(domainKey));
                 syncLock.EnterWriteLock();
-                ExplorationStatus s;
-                if (explorationStatusDict.TryGetValue(domainKey, out s))
+                try
                 {
-                    if (s != ExplorationStatus.Unexplored)
+                    ExplorationStatus s;
+                    if (explorationStatusDict.TryGetValue(domainKey, out s))
                     {
-                        syncLock.ExitWriteLock();
-                        return false;
+                        if (s != ExplorationStatus.Unexplored)
+                            return false;
                     }
+                    explorationStatusDict[domainKey] = ExplorationStatus.Exploring;
+                    return true;
                 }
-                explorationStatusDict[domainKey] = ExplorationStatus.Exploring;
-                syncLock.ExitWriteLock();
-                return true;
+                finally
+                {
+                    syncLock.ExitWriteLock();
+                }
             }
 
             /// <summary>
@@ -114,25 +118,30 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             {
                 if (domainKey == null) throw new ArgumentNullException(nameof(domainKey));
                 syncLock.EnterWriteLock();
-                ExplorationStatus s;
-                if (explorationStatusDict.TryGetValue(domainKey, out s))
+                try
                 {
-                    switch (s)
+                    ExplorationStatus s;
+                    if (explorationStatusDict.TryGetValue(domainKey, out s))
                     {
-                        case ExplorationStatus.Unexplored:
-                            break;
-                        case ExplorationStatus.Explored:
-                            syncLock.ExitWriteLock();
-                            return Task.FromResult(false);
-                        case ExplorationStatus.Exploring:
-                            // Wait for exploration
-                            var tcs = explorationTaskCompletionSourceDict.GetOrCreate(domainKey);
-                            return tcs.Task;
+                        switch (s)
+                        {
+                            case ExplorationStatus.Unexplored:
+                                break;
+                            case ExplorationStatus.Explored:
+                                return Task.FromResult(false);
+                            case ExplorationStatus.Exploring:
+                                // Wait for exploration
+                                var tcs = explorationTaskCompletionSourceDict.GetOrAdd(domainKey);
+                                return tcs.Task;
+                        }
                     }
+                    explorationStatusDict[domainKey] = ExplorationStatus.Exploring;
+                    return Task.FromResult(true);
                 }
-                explorationStatusDict[domainKey] = ExplorationStatus.Exploring;
-                syncLock.ExitWriteLock();
-                return Task.FromResult(true);
+                finally 
+                {
+                    syncLock.ExitWriteLock();
+                }
             }
 
             /// <summary>
@@ -143,32 +152,43 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             {
                 if (domainKey == null) throw new ArgumentNullException(nameof(domainKey));
                 syncLock.EnterWriteLock();
-#if DEBUG
-                //Debug.Assert(explorationStatusDict[domainKey] == ExplorationStatus.Exploring);
-#endif
-                explorationStatusDict[domainKey] = ExplorationStatus.Explored;
-                var tcs = explorationTaskCompletionSourceDict.TryGetValue(domainKey);
-                if (tcs != null)
+                try
                 {
-                    // 为什么是 false ？ 参阅 MarkAsExploringOrUntilExplored 的返回值。
-                    tcs.SetResult(false);
-                    explorationTaskCompletionSourceDict.Remove(domainKey);
+#if DEBUG
+                    //Debug.Assert(explorationStatusDict[domainKey] == ExplorationStatus.Exploring);
+#endif
+                    explorationStatusDict[domainKey] = ExplorationStatus.Explored;
+                    var tcs = explorationTaskCompletionSourceDict.TryGetValue(domainKey);
+                    if (tcs != null)
+                    {
+                        // 为什么是 false ？ 参阅 MarkAsExploringOrUntilExplored 的返回值。
+                        tcs.SetResult(false);
+                        explorationTaskCompletionSourceDict.Remove(domainKey);
+                    }
                 }
-                syncLock.ExitWriteLock();
+                finally
+                {
+                    syncLock.ExitWriteLock();
+                }
             }
 
             public ExplorationStatus GetExplorationStatus(object domainKey)
             {
                 if (domainKey == null) throw new ArgumentNullException(nameof(domainKey));
                 syncLock.EnterReadLock();
-                ExplorationStatus s;
-                if (explorationStatusDict.TryGetValue(domainKey, out s))
+                try
+                {
+                    ExplorationStatus s;
+                    if (explorationStatusDict.TryGetValue(domainKey, out s))
+                    {
+                        return s;
+                    }
+                    return ExplorationStatus.Unexplored;
+                }
+                finally
                 {
                     syncLock.ExitReadLock();
-                    return s;
                 }
-                syncLock.ExitReadLock();
-                return ExplorationStatus.Unexplored;
             }
 
             ~NodeStatus()
@@ -247,18 +267,20 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         /// <summary>
         /// 同时探索多个节点。适用于文章节点。
         /// </summary>
-        private async Task LocalExploreAsync(ICollection<PaperNode> nodes)
+        private async Task LocalExploreAsync(IEnumerable<PaperNode> nodes)
         {
             Debug.Assert(nodes != null);
-            if (nodes.Count == 0) return;
-            Logging.Enter(this, $"[{nodes.Count} nodes]");
+            var nodesCollection = nodes as ICollection<PaperNode> ?? nodes.ToArray();
+            if (nodesCollection.Count == 0) return;
+            Logging.Enter(this, $"[{nodesCollection.Count} nodes]");
             var newlyDiscoveredNodes = 0;
             try
             {
-                var nodesToExplore = nodes
+                var nodesToExplore = nodesCollection
                     .Where(n => GetStatus(n.Id).MarkAsExploring(NodeStatus.LocalExploration))
                     .ToArray();
                 if (nodesToExplore.Length == 0) return;
+                // 区分“已经下载详细信息”的实体和“需要下载详细信息”的实体。
                 var nodesToFetch = nodesToExplore.Where(n => n.IsStub);
                 var nodesFetched = nodesToExplore.Where(n => !n.IsStub);
                 var fetchTasks = nodesToFetch.Select(n => n.Id)
@@ -276,13 +298,13 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                     }).ToArray();   // 先让网络通信启动起来。
                 Func<PaperNode, Task> explore = async paperNode =>
                 {
-                    Debug.Assert(this.nodes.ContainsKey(paperNode.Id));
+                    //Debug.Assert(this.nodes.ContainsKey(paperNode.Id));
                     var adj = await paperNode.GetAdjacentNodesAsync();
                     // an: Adjacent Node
                     foreach (var an in adj)
                     {
                         if (RegisterNode(an)) newlyDiscoveredNodes++;
-                        RegisterEdge(an.Id, an.Id, !(an is PaperNode));
+                        RegisterEdge(paperNode.Id, an.Id, !(an is PaperNode));
                     }
                     // 标记为“已经探索过”。
                     GetStatus(paperNode.Id).MarkAsExplored(NodeStatus.LocalExploration);
@@ -301,7 +323,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         }
 
         /// <summary>
-        /// 异步探索作者的所有论文。
+        /// 异步探索作者的所有论文，顺便探索他/她在发表这些论文时所位于的机构。
         /// 如果其他线程正在探索此节点，则等待此节点探索完毕。
         /// </summary>
         private async Task ExploreAuthorPapersAsync(AuthorNode author)
@@ -403,7 +425,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             var result = hops.SelectMany(hop => hop)
                 .Distinct(new ArrayEqualityComparer<KgNode>(KgNodeEqualityComparer.Default))
                 .ToArray();
-            Logging.Exit(this, $"{result} distinct paths");
+            Logging.Exit(this, $"{result.Length} distinct paths");
             return result;
         }
 

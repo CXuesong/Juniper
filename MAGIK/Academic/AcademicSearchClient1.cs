@@ -57,6 +57,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
             }
             catch (Exception e)
             {
+                Logging.Error(this, "Exception processing: {0}", request.RequestUri);
                 HandleException(e);
                 return default(T);
             }

@@ -15,24 +15,72 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         /// <summary>
         /// 根据给定的两个节点，探索能够与这两个节点相连的中间结点集合。
         /// </summary>
-        private async Task ExploreInterceptionNodesAsync(ICollection<KgNode> nodes1, KgNode node2)
+        private Task ExploreInterceptionNodesAsync(IEnumerable<KgNode> nodes1, KgNode node2)
+        {
+            var tasks = nodes1
+                .ToLookup(n => n.GetType())
+                .Select(g =>
+                {
+                    if (g.Key == typeof (PaperNode))
+                        // 论文可以批量处理。
+                        return ExploreInterceptionNodesInternalAsync(g, node2);
+                        // 其它节点只能一个一个来。
+                    return Task.WhenAll(g.Select(node => ExploreInterceptionNodesAsync(node, node2)));
+                });
+            return Task.WhenAll(tasks);
+        }
+
+        /// <summary>
+        /// 根据给定的两个节点，探索能够与这两个节点相连的中间结点集合。
+        /// </summary>
+        private Task ExploreInterceptionNodesAsync(IEnumerable<PaperNode> nodes1, KgNode node2)
+        {
+            return ExploreInterceptionNodesInternalAsync(nodes1, node2);
+        }
+
+        /// <summary>
+        /// 根据给定的两个节点，探索能够与这两个节点相连的中间结点集合。
+        /// </summary>
+        private Task ExploreInterceptionNodesAsync(IEnumerable<AuthorNode> nodes1, KgNode node2)
+        {
+            // 多个作者只能一个一个搜。反正一篇文章应该没几个作者……吧？
+            return Task.WhenAll(nodes1.Select(au => ExploreInterceptionNodesInternalAsync(new[] { au }, node2)));
+        }
+
+        /// <summary>
+        /// 根据给定的两个节点，探索能够与这两个节点相连的中间结点集合。
+        /// </summary>
+        private Task ExploreInterceptionNodesAsync(KgNode node1, KgNode node2)
+        {
+            return ExploreInterceptionNodesInternalAsync(new[] { node1 }, node2);
+        }
+
+        /// <summary>
+        /// 根据给定的两个节点，探索能够与这两个节点相连的中间结点集合。
+        /// 注意，在代码中请使用 ExploreInterceptionNodesAsync 的重载。
+        /// 不要直接调用此函数。
+        /// </summary>
+        private async Task ExploreInterceptionNodesInternalAsync(IEnumerable<KgNode> nodes1, KgNode node2)
         {
             if (nodes1 == null) throw new ArgumentNullException(nameof(nodes1));
             if (node2 == null) throw new ArgumentNullException(nameof(node2));
-            if (nodes1.Count == 0) throw new ArgumentException(null, nameof(nodes1));
+            var nodes1Array = nodes1.ToArray();
+            if (nodes1Array.Length == 0)
+                return;     // Nothing to explore.
             KgNode node1 = null;
-            PaperNode[] papers1 = null;
+            // PossibleMultipleEnumeration -- 反正只是一次 Cast<T>，反复枚举应该没什么问题。
+            IEnumerable<PaperNode> papers1 = null;
             // 在进行上下文相关探索之前，先对两个节点进行局部探索。
-            if (nodes1.Count == 1)
+            if (nodes1Array.Length == 1)
             {
-                node1 = nodes1.First();
+                node1 = nodes1Array[0];
                 if (node1 is PaperNode)
-                    papers1 = new[] {(PaperNode) node1};
+                    papers1 = new[] { (PaperNode)node1 };
                 await Task.WhenAll(LocalExploreAsync(node1), LocalExploreAsync(node2));
             }
             else
             {
-                papers1 = nodes1.Cast<PaperNode>().ToArray();
+                papers1 = nodes1Array.Cast<PaperNode>();
                 await Task.WhenAll(LocalExploreAsync(papers1),
                     LocalExploreAsync(node2));
             }
@@ -128,7 +176,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                 else if (node1 is AuthorNode)
                 {
                     // AA.AuId1 <-> Id3 <-> AA.AuId2
-                    var author1 = (AuthorNode) node1;
+                    var author1 = (AuthorNode)node1;
                     // 探索 AA.AuId1 的所有论文。此处的探索还可以顺便确定 AuId1 的所有组织。
                     // 注意到每个作者都会写很多论文
                     // 不论如何，现在尝试从 Id1 向 Id2 探索。
