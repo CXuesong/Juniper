@@ -7,6 +7,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MAGIK", "MAGIK\MAGIK.csproj
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UnitTestProject1", "UnitTestProject1\UnitTestProject1.csproj", "{BE88E8C7-5923-49CD-ABD4-C18D5C4F0F2C}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MagikConsole", "MagikConsole\MagikConsole.csproj", "{98A6A9B8-FC3A-4BB0-81F3-65D668B938F1}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +23,10 @@ Global
 		{BE88E8C7-5923-49CD-ABD4-C18D5C4F0F2C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{BE88E8C7-5923-49CD-ABD4-C18D5C4F0F2C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{BE88E8C7-5923-49CD-ABD4-C18D5C4F0F2C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{98A6A9B8-FC3A-4BB0-81F3-65D668B938F1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{98A6A9B8-FC3A-4BB0-81F3-65D668B938F1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{98A6A9B8-FC3A-4BB0-81F3-65D668B938F1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{98A6A9B8-FC3A-4BB0-81F3-65D668B938F1}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
