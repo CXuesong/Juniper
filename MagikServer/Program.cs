@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Configuration;
+using System.Diagnostics;
 using System.Linq;
 using System.Net.Http;
 using System.Text;
@@ -24,10 +25,12 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikServer
             // Start OWIN host 
             using (WebApp.Start<Startup>(options))
             {
+                /*
                 var client = new HttpClient();
                 var response = client.GetAsync("http://localhost:9000/magik/v1/paths?expr=[123,456]").Result;
                 Console.WriteLine(response);
                 Console.WriteLine(response.Content.ReadAsStringAsync().Result);
+                */
                 Console.WriteLine("请按回车键以结束服务。");
                 Console.ReadLine();
             }

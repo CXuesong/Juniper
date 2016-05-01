@@ -26,7 +26,10 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikServer.Controllers
             {
                 idPair = JsonConvert.DeserializeObject<long[]>(expr);
             }
-            catch (JsonSerializationException ex)
+            catch (Exception ex) when (
+                ex is JsonSerializationException
+                || ex is JsonReaderException
+                )
             {
                 throw new ArgumentException(ex.Message, nameof(expr));
             }
@@ -51,7 +54,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikServer.Controllers
             resultBuilder.Append("]");
             var resp = new HttpResponseMessage(HttpStatusCode.OK)
             {
-                Content = new StringContent(resultBuilder.ToString(), Encoding.UTF8, Utility.JsonMediaType)
+                Content = new StringContent(resultBuilder.ToString(), null, Utility.JsonMediaType)
             };
             return new ResponseMessageResult(resp);
         }

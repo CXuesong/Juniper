@@ -411,8 +411,8 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                 GetEntityOrAuthorNodeAsync(id2));
             var node1 = nodes[0];
             var node2 = nodes[1];
-            if (node1 == null) throw new ArgumentException($"在 MAG 中找不到指定的 Id：{id1}", nameof(id1));
-            if (node1 == null) throw new ArgumentException($"在 MAG 中找不到指定的 Id：{id2}", nameof(id2));
+            if (node1 == null) throw new ArgumentException($"在 MAG 中找不到指定的 Id：{id1}。", nameof(id1));
+            if (node2 == null) throw new ArgumentException($"在 MAG 中找不到指定的 Id：{id2}。", nameof(id2));
             // 在图中注册节点。
             RegisterNode(node1);
             RegisterNode(node2);
