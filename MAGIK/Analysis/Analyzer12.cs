@@ -28,7 +28,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             // 2-hop
             var commonNodes = out1.Intersect(in2);
             paths.AddRange(commonNodes.Select(cn => new[] {node1, nodes[cn], node2}));
-            Logging.Success(this, "1-Hop & 2-Hop Paths: {0} .", paths.Count);
+            Logging.Success(this, "在 {0} - {1} 之间找到了 {2} 条 1/2-hop 路径。", node1.Id, node2.Id, paths.Count);
             Logging.Exit(this);
             return paths;
         }

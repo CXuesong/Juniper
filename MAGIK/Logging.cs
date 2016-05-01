@@ -140,7 +140,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik
         public static void Exception(object obj, Exception ex, [CallerMemberName] string memberName = null)
         {
             source.TraceEvent(TraceEventType.Error, EventId.Exception,
-                $"{ToString(obj)}.{memberName} !> {ex}");
+                $"{ToString(obj)}.{memberName} !> {Utility.ExpandErrorMessage(ex)}");
         }
 
         private static string ToString(object obj)

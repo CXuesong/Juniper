@@ -32,11 +32,6 @@ namespace Microsoft.Contests.Bop.Participants.Magik
             return new HashSet<T>(source);
         }
 
-        public static Exception BuildIdNotFoundException(long id)
-        {
-            return new KeyNotFoundException($"在 MAG 中找不到指定的 Id：{id}");
-        }
-
         public static TValue GetOrAdd<TKey, TValue>(this IDictionary<TKey, TValue> dict, TKey key)
             where TValue : new()
         {
@@ -82,6 +77,33 @@ namespace Microsoft.Contests.Bop.Participants.Magik
             }
             if (partition.Count > 0) yield return partition;
         }
+
+        /// <summary>
+        /// 展开异常消息，以避免出现诸如“发生一个或多个错误”这样无用的消息。
+        /// </summary>
+        public static string ExpandErrorMessage(Exception ex)
+        {
+            if (ex == null) throw new ArgumentNullException(nameof(ex));
+            var agg = ex as AggregateException;
+            if (agg != null)
+                return string.Join(";", agg.InnerExceptions.Select(ExpandErrorMessage));
+            return $"{ex.GetType().Name}:ex.Message";
+        }
+
+        ///// <summary>
+        ///// 展开异常。（假定如果是 AggregateException，则其仅包含一个异常。）
+        ///// </summary>
+        //public static Exception ExpandException(Exception ex)
+        //{
+        //    if (ex == null) throw new ArgumentNullException(nameof(ex));
+        //    var agg = ex as AggregateException;
+        //    if (agg != null)
+        //    {
+        //        Debug.Assert(agg.InnerExceptions.Count == 1);
+        //        return agg.InnerExceptions[0];
+        //    }
+        //    return ex;
+        //}
     }
 
     /// <summary>

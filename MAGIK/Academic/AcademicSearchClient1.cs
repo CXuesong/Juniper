@@ -49,36 +49,59 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
         private async Task<T> SendAsync<T>(WebRequest request)
         {
             Interlocked.Increment(ref queryCounter);
-            var sw = Stopwatch.StartNew();
+            var sw = new Stopwatch();
             try
             {
-                var responseTask = request.GetResponseAsync();
-                var timeoutTask = Task.Delay(Timeout);
+                sw.Restart();
                 var retries = 0;
                 RETRY:
+                var responseTask = request.GetResponseAsync();
+                var timeoutTask = Task.Delay(Timeout);
                 if (await Task.WhenAny(responseTask, timeoutTask) == timeoutTask)
                 {
                     if (!responseTask.IsCompleted)
                     {
-                        // Time out
+                        //To time out asynchronous requests, use the Abort method.
+                        try
+                        {
+                            request.Abort();
+                        }
+                        catch (WebException ex)
+                        {
+                            Debug.Assert(ex.Status == WebExceptionStatus.RequestCanceled);
+                        }
                         retries++;
                         Logging.Warn(this, EventId.RequestTimeout,
                             "Timeout(x{0}): {1}", retries, request.RequestUri);
+                        //timeoutTask.Dispose();
                         if (retries > MaxRetries) throw new TimeoutException();
-                        responseTask = request.GetResponseAsync();
-                        timeoutTask.Dispose();
-                        timeoutTask = Task.Delay(Timeout);
+                        // Before retry, copy the request.
+                        var newRequest = WebRequest.Create(request.RequestUri);
+                        newRequest.Method = request.Method;
+                        //newRequest.Timeout = request.Timeout; of no use.
+                        var hwr = request as HttpWebRequest;
+                        var nhwr = newRequest as HttpWebRequest;
+                        if (hwr != null)
+                        {
+                            Debug.Assert(nhwr != null);
+                            nhwr.UserAgent = hwr.UserAgent;
+                            nhwr.Referer = hwr.Referer;
+                        }
+                        request = newRequest;
                         goto RETRY;
                     }
                 }
-                var result = (HttpWebResponse) responseTask.Result;
+                // 这里使用 await 而不是 responseTask.Result 其实也是为了展开异常。
+                // 不然扔出来的很可能是 AggregateException 。
+                var result = (HttpWebResponse) await responseTask;
                 Logging.Trace(this, EventId.RequestOk, "{0}[{1}]({2}ms): {3}",
-                    (int) result.StatusCode, result.StatusDescription, sw.ElapsedMilliseconds, request.RequestUri);
+                    (int)result.StatusCode, result.StatusDescription, sw.ElapsedMilliseconds, request.RequestUri);
                 return ProcessAsyncResponse<T>(result);
             }
             catch (Exception e)
             {
-                Logging.Error(this, "{0}({1}ms): {2}", e.Message, sw.ElapsedMilliseconds, request.RequestUri);
+                Logging.Error(this, "{0}({1}ms): {2}", Utility.ExpandErrorMessage(e),
+                    sw.ElapsedMilliseconds, request.RequestUri);
                 HandleException(e);
                 return default(T);
             }

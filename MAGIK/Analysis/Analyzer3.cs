@@ -52,7 +52,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                         new[] {node1, nodes[id3], nodes[id4], node2}));
                 }
             }
-            Logging.Success(this, "3-Hop Paths: {0} .", paths.Count);
+            Logging.Success(this, "在 {0} - {1} 之间找到了 {2} 条 3-hop 路径。", node1.Id, node2.Id, paths.Count);
             Logging.Exit(this);
             return paths;
         }

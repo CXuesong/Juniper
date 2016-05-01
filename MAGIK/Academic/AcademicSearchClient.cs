@@ -73,6 +73,11 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
         /// </summary>
         public TimeSpan Timeout { get; set; } = TimeSpan.FromSeconds(10);
 
+        ///// <summary>
+        ///// 当因请求过于频繁而出现服务器错误时，重试前等待的时间。
+        ///// </summary>
+        //public TimeSpan ConcurrentFailureDelay { get; set; } = TimeSpan.FromSeconds(5);
+
         /// <summary>
         /// 最大重试次数。
         /// </summary>
@@ -130,7 +135,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
             var requestUrl =
                 $"{ServiceHostUrl}/evaluate?expr={expression}&model=latest&count={count}&offset={offset}&orderby={orderBy}&attributes={attributes ?? EvaluationDefaultAttributes}{QuerySuffix}";
             var request = WebRequest.Create(requestUrl);
-            InitializeHeader(request, "GET");
+            InitializeRequest(request, "GET");
             var result = await SendAsync<EvaluationResult>(request);
             Logging.Exit(this, $"{result?.Entities?.Count} Entity");
             return result;
@@ -240,7 +245,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
             return IsEvaluationCountGreaterThanAsync(expression, 0);
         }
 
-        private void InitializeHeader(WebRequest request, string method)
+        private void InitializeRequest(WebRequest request, string method)
         {
             request.Headers[_subscriptionKeyName] = _subscriptionKey;
             var hwr = (request as HttpWebRequest);
@@ -250,6 +255,8 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
                 hwr.Referer = Referer;
             }
             request.Method = method;
+            // The Timeout property affects only synchronous requests made with the GetResponse method.
+            //request.Timeout = (int) Timeout.TotalMilliseconds;
         }
 
         /// <summary>

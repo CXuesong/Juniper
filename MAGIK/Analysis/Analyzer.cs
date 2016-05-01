@@ -370,7 +370,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                 return existing;
             // 去网上找找。
             var er = await GlobalServices.ASClient.EvaluateAsync(
-                SearchExpressionBuilder.EntityOrAuthorIdEquals(id), 2, 0);
+                SEB.EntityOrAuthorIdEquals(id), 2, 0);
             if (er.Entities.Count == 0) return null;
             foreach (var et in er.Entities)
             {
@@ -402,21 +402,21 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         /// 合法的节点类型包括
         /// 论文（Id）, 研究领域（F.Fid）, 期刊（J.JId）, 会议（C.CId）, 作者（AA.AuId）, 组织（AA.AfId）。
         /// </returns>
-        public async Task<ICollection<KgNode[]>> FindPathsAsync(long id1, long id2)
+        public async Task<KgNode[][]> FindPathsAsync(long id1, long id2)
         {
             Logging.Enter(this, $"{id1} -> {id2}");
+            var sw = Stopwatch.StartNew();
             // 先找到实体/作者再说。
             var nodes = await Task.WhenAll(GetEntityOrAuthorNodeAsync(id1),
                 GetEntityOrAuthorNodeAsync(id2));
             var node1 = nodes[0];
             var node2 = nodes[1];
-            if (node1 == null) throw Utility.BuildIdNotFoundException(id1);
-            if (node2 == null) throw Utility.BuildIdNotFoundException(id2);
+            if (node1 == null) throw new ArgumentException($"在 MAG 中找不到指定的 Id：{id1}", nameof(id1));
+            if (node1 == null) throw new ArgumentException($"在 MAG 中找不到指定的 Id：{id2}", nameof(id2));
             // 在图中注册节点。
             RegisterNode(node1);
             RegisterNode(node2);
             // 开始搜索。
-
             var hops = await Task.WhenAll(FindHop12PathsAsync(node1, node2),
                 FindHop3PathsAsync(node1, node2));
             // Possible multiple enumeration of IEnumerable
@@ -425,7 +425,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             var result = hops.SelectMany(hop => hop)
                 .Distinct(new ArrayEqualityComparer<KgNode>(KgNodeEqualityComparer.Default))
                 .ToArray();
-            Logging.Success(this, "在 {0} - {1} 之间找到了 {2} 条路径。", id1, id2, result.Length);
+            Logging.Success(this, "在 {0} - {1} 之间找到了 {2} 条路径。用时： {3} 。", node1, node2, result.Length, sw.Elapsed);
             Logging.Trace(this, "缓存图： {0} 个节点， {1} 条边。", graph.VerticesCount, graph.EdgesCount);
             Logging.Exit(this);
             return result;

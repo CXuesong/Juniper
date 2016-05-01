@@ -40,7 +40,8 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikConsole
                 Console.WriteLine("例如： 2157025439 2061503185");
                 //Console.WriteLine("查找论文：键入一个实体/作者的名称或 Id 。将会选取最匹配的结果显示。");
                 Console.Write(" >");
-                var inp = Console.ReadLine()?.Split(new[] {' ', '\t', ','}, StringSplitOptions.RemoveEmptyEntries);
+                var inp = Console.ReadLine()?.Split(new[] {' ', '\t', ',', '[', ']'},
+                    StringSplitOptions.RemoveEmptyEntries);
                 if (inp == null || inp.Length == 0)
                 {
                     Console.WriteLine("再见！");
@@ -64,7 +65,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikConsole
                 }
                 catch (Exception ex)
                 {
-                    Console.Error.WriteLine(ex.Message);
+                    Console.Error.WriteLine(ExpandErrorMessage(ex));
                 }
             }
         }
@@ -87,11 +88,23 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikConsole
             var sw = Stopwatch.StartNew();
             var paths = await analyzer.FindPathsAsync(id1, id2);
             sw.Stop();
-            Console.WriteLine("找到 {0} 条路径，用时 {1} 。", paths.Count, sw.Elapsed);
+            Console.WriteLine("找到 {0} 条路径，用时 {1} 。", paths.Length, sw.Elapsed);
             foreach (var g in paths.ToLookup(p => p.Length).OrderBy(g1 => g1.Key))
             {
                 Console.WriteLine("{0}-hop：{1} 条。", g.Key - 1, g.Count());
             }
+        }
+
+        /// <summary>
+        /// 展开异常消息，以避免出现诸如“发生一个或多个错误”这样无用的消息。
+        /// </summary>
+        public static string ExpandErrorMessage(Exception ex)
+        {
+            if (ex == null) throw new ArgumentNullException(nameof(ex));
+            var agg = ex as AggregateException;
+            if (agg != null)
+                return string.Join(";", agg.InnerExceptions.Select(ExpandErrorMessage));
+            return $"{ex.GetType().Name}:ex.Message";
         }
     }
 }
