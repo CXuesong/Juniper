@@ -62,7 +62,8 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
                     {
                         // Time out
                         retries++;
-                        Logging.Warn(this, "Timeout({0}): {1}", retries, request.RequestUri);
+                        Logging.Warn(this, EventId.RequestTimeout,
+                            "Timeout(x{0}): {1}", retries, request.RequestUri);
                         if (retries > MaxRetries) throw new TimeoutException();
                         responseTask = request.GetResponseAsync();
                         timeoutTask.Dispose();
@@ -70,11 +71,14 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
                         goto RETRY;
                     }
                 }
-                return ProcessAsyncResponse<T>((HttpWebResponse) responseTask.Result);
+                var result = (HttpWebResponse) responseTask.Result;
+                Logging.Trace(this, EventId.RequestOk, "{0}[{1}]({2}ms): {3}",
+                    (int) result.StatusCode, result.StatusDescription, sw.ElapsedMilliseconds, request.RequestUri);
+                return ProcessAsyncResponse<T>(result);
             }
             catch (Exception e)
             {
-                Logging.Error(this, "Exception processing: {0}", request.RequestUri);
+                Logging.Error(this, "{0}({1}ms): {2}", e.Message, sw.ElapsedMilliseconds, request.RequestUri);
                 HandleException(e);
                 return default(T);
             }
