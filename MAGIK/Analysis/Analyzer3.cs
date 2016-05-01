@@ -52,7 +52,8 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                         new[] {node1, nodes[id3], nodes[id4], node2}));
                 }
             }
-            Logging.Exit(this, $"{paths.Count} paths");
+            Logging.Success(this, "3-Hop Paths: {0} .", paths.Count);
+            Logging.Exit(this);
             return paths;
         }
     }

@@ -58,10 +58,32 @@ namespace Microsoft.Contests.Bop.Participants.Magik
         /// <param name="obj">发出诊断信息的源对象。</param>
         /// <param name="format">诊断信息的格式化字符串。</param>
         /// <param name="args">格式化字符串的参数。</param>
+        public static void Info(object obj, int id, string format, params object[] args)
+        {
+            source.TraceEvent(TraceEventType.Information, id,
+                $"{ToString(obj)} : {string.Format(format, args)}");
+        }
+
+        /// <summary>
+        /// 向日志输出一条信息。
+        /// </summary>
+        /// <param name="obj">发出诊断信息的源对象。</param>
+        /// <param name="format">诊断信息的格式化字符串。</param>
+        /// <param name="args">格式化字符串的参数。</param>
         public static void Info(object obj, string format, params object[] args)
         {
-            source.TraceEvent(TraceEventType.Information, 0,
-                $"{ToString(obj)} : {string.Format(format, args)}");
+            Info(obj, 0, format, args);
+        }
+
+        /// <summary>
+        /// 向日志输出一条表示成功的信息。
+        /// </summary>
+        /// <param name="obj">发出诊断信息的源对象。</param>
+        /// <param name="format">诊断信息的格式化字符串。</param>
+        /// <param name="args">格式化字符串的参数。</param>
+        public static void Success(object obj, string format, params object[] args)
+        {
+            Info(obj, 100, format, args);
         }
 
         /// <summary>

@@ -29,7 +29,12 @@ namespace Microsoft.Contests.Bop.Participants.Magik
         /// <remarks>
         /// 请在 <see cref="InitializeConfidential" /> 的实现中设置此属性。
         /// </remarks>
-        public static bool ASReleaseMode { get; private set; } = false;
+        public static bool ASReleaseMode { get; private set; }
+#if DEBUG
+            = false;
+#else
+            = true;
+#endif
 
         /// <summary>
         /// 适用于 DEBUG 使用的 Academic Search 搜索要求返回的属性列表。

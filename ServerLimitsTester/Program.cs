@@ -39,13 +39,13 @@ namespace ServerLimitsTester
 
         private static async Task MainAsync()
         {
-            //Console.WriteLine("Max query length: {0}",
-            //    await MaxQueryLengthTestAsync(DestUrl,
-            //        $"?subscription-key={AcademicSearchSubscriptionKey}&expr=", 4000));
+            Console.WriteLine("Max query length: {0}",
+                await MaxQueryLengthTestAsync(DestUrl,
+                    $"?subscription-key={AcademicSearchSubscriptionKey}&expr=", 4000));
             Console.WriteLine("Max concurrent connections: {0}",
                 await MaxConcurrentConnectionsTestAsync(
                     DestUrl + $"?subscription-key={AcademicSearchSubscriptionKey}&expr=Composite(F.FN='biology')&offset=10000&count=100&attributes=Id,Ti,AA.AuId,AA.AuN,AA.AfId,AA.AfN,RId",
-                    80));
+                    40));
         }
 
         /// <summary>
@@ -84,7 +84,7 @@ namespace ServerLimitsTester
             var mid = (min + max) / 2;
             while (max - min > 2)
             {
-                await Task.Delay(2000);
+                await Task.Delay(1000);
                 var tasks = Enumerable.Range(0, mid)
                     .Select(i => client.GetAsync(url));
                 var responses = await Task.WhenAll(tasks);

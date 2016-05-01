@@ -425,7 +425,9 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             var result = hops.SelectMany(hop => hop)
                 .Distinct(new ArrayEqualityComparer<KgNode>(KgNodeEqualityComparer.Default))
                 .ToArray();
-            Logging.Exit(this, $"{result.Length} distinct paths");
+            Logging.Success(this, "在 {0} - {1} 之间找到了 {2} 条路径。", id1, id2, result.Length);
+            Logging.Trace(this, "缓存图： {0} 个节点， {1} 条边。", graph.VerticesCount, graph.EdgesCount);
+            Logging.Exit(this);
             return result;
         }
 

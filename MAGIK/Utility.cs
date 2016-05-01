@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace Microsoft.Contests.Bop.Participants.Magik
 {
-    public static partial class Utility
+    internal static class Utility
     {
         public static string ToTitleCase(this string str)
         {

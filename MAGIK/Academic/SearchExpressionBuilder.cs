@@ -16,10 +16,14 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
     /// </remarks>
     public static class SearchExpressionBuilder
     {
+        // 
+        public const int MaxChainedIdCount = 100;
+
         public static string EntityIdEquals(long id)
             => $"Id={id}";
 
-        public const int MaxChainedIdCount = 100;
+        public static string EntityTitleEquals(string title)
+            => $"Ti={title}";
 
         /// <summary>
         /// 要求实体 Id 是给定集合中的一个 Id 。ids 数量不应当超过 100 。
