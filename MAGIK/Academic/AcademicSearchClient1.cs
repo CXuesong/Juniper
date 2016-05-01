@@ -52,8 +52,25 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
             var sw = Stopwatch.StartNew();
             try
             {
-                var response = await request.GetResponseAsync();
-                return ProcessAsyncResponse<T>((HttpWebResponse) response);
+                var responseTask = request.GetResponseAsync();
+                var timeoutTask = Task.Delay(Timeout);
+                var retries = 0;
+                RETRY:
+                if (await Task.WhenAny(responseTask, timeoutTask) == timeoutTask)
+                {
+                    if (!responseTask.IsCompleted)
+                    {
+                        // Time out
+                        retries++;
+                        Logging.Warn(this, "Timeout({0}): {1}", retries, request.RequestUri);
+                        if (retries > MaxRetries) throw new TimeoutException();
+                        responseTask = request.GetResponseAsync();
+                        timeoutTask.Dispose();
+                        timeoutTask = Task.Delay(Timeout);
+                        goto RETRY;
+                    }
+                }
+                return ProcessAsyncResponse<T>((HttpWebResponse) responseTask.Result);
             }
             catch (Exception e)
             {

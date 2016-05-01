@@ -41,6 +41,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
             _subscriptionKey = subscriptionKey;
         }
 
+#region 配置
         /// <summary>
         /// Academic Search API 服务器主机 Url 。
         /// 此属性的默认值为 https://api.projectoxford.ai/academic/v1.0 。
@@ -68,6 +69,16 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
         public string Referer { get; set; }
 
         /// <summary>
+        /// 请求超时。
+        /// </summary>
+        public TimeSpan Timeout { get; set; } = TimeSpan.FromSeconds(10);
+
+        /// <summary>
+        /// 最大重试次数。
+        /// </summary>
+        public int MaxRetries { get; set; } = 2;
+
+        /// <summary>
         /// 提交请求时自动的分页大小。
         /// </summary>
         public int PagingSize
@@ -84,6 +95,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
         /// 并行提交分页请求时，并行的任务数量。
         /// </summary>
         public int ConcurrentPagingCount { get; set; } = 4;
+#endregion
 
         #region 统计信息
 #if TRACE
