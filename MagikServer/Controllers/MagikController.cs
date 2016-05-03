@@ -22,7 +22,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikServer.Controllers
         /// </summary>
         [Route("magik/v1/paths")]
         [JsonArgumentExceptionFilter]
-        [JsonExceptionsFilterAttribute]
+        [JsonExceptionsFilter]
         public async Task<IHttpActionResult> Get(string expr)
         {
             long[] idPair;
@@ -30,37 +30,43 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikServer.Controllers
             {
                 idPair = JsonConvert.DeserializeObject<long[]>(expr);
             }
-            catch (Exception ex) when (
-                ex is JsonSerializationException
-                || ex is JsonReaderException
-                )
+            catch (Exception ex) when (ex is JsonSerializationException
+                                       || ex is JsonReaderException)
             {
                 throw new ArgumentException(ex.Message, nameof(expr));
             }
             if (idPair.Length != 2)
                 throw new ArgumentException("无效的节点对。节点对有且仅有两个元素。", nameof(expr));
-            var analzer = new Analyzer(GlobalServices.CreateASClient());
-            var paths = await analzer.FindPathsAsync(idPair[0], idPair[1]);
-            // 返回只要 Id 就可以了。
-            // 由于结构比较简单，所以可以强行 json 。
-            var resultBuilder = new StringBuilder("[");
-            for (int i = 0; i < paths.Length; i++)
+            var asClient = GlobalServices.CreateASClient();
+            var analyzer = new Analyzer(asClient);
+            try
             {
-                if (i > 0) resultBuilder.Append(",\n");
-                resultBuilder.Append("[");
-                for (int j = 0; j < paths[i].Length; j++)
+                var paths = await analyzer.FindPathsAsync(idPair[0], idPair[1]);
+                // 返回只要 Id 就可以了。
+                // 由于结构比较简单，所以可以强行 json 。
+                var resultBuilder = new StringBuilder("[");
+                for (int i = 0; i < paths.Length; i++)
                 {
-                    if (j > 0) resultBuilder.Append(",");
-                    resultBuilder.Append(paths[i][j].Id);
+                    if (i > 0) resultBuilder.Append(",\n");
+                    resultBuilder.Append("[");
+                    for (int j = 0; j < paths[i].Length; j++)
+                    {
+                        if (j > 0) resultBuilder.Append(",");
+                        resultBuilder.Append(paths[i][j].Id);
+                    }
+                    resultBuilder.Append("]");
                 }
                 resultBuilder.Append("]");
+                var resp = new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(resultBuilder.ToString(), null, Utility.JsonMediaType)
+                };
+                return new ResponseMessageResult(resp);
             }
-            resultBuilder.Append("]");
-            var resp = new HttpResponseMessage(HttpStatusCode.OK)
+            finally
             {
-                Content = new StringContent(resultBuilder.ToString(), null, Utility.JsonMediaType)
-            };
-            return new ResponseMessageResult(resp);
+                analyzer.LogStatistics();
+            }
         }
     }
 }

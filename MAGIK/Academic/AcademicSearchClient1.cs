@@ -71,7 +71,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
                             Debug.Assert(ex.Status == WebExceptionStatus.RequestCanceled);
                         }
                         retries++;
-                        Logging.Warn(this, EventId.RequestTimeout,
+                        Logger.AcademicSearch.Warn(this, EventId.RequestTimeout,
                             "Timeout(x{0}): {1}", retries, request.RequestUri);
                         //timeoutTask.Dispose();
                         if (retries > MaxRetries) throw new TimeoutException();
@@ -94,13 +94,13 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
                 // 这里使用 await 而不是 responseTask.Result 其实也是为了展开异常。
                 // 不然扔出来的很可能是 AggregateException 。
                 var result = (HttpWebResponse) await responseTask;
-                Logging.Trace(this, EventId.RequestOk, "{0}[{1}]({2}ms): {3}",
+                Logger.AcademicSearch.Trace(this, EventId.RequestOk, "{0}[{1}]({2}ms): {3}",
                     (int)result.StatusCode, result.StatusDescription, sw.ElapsedMilliseconds, request.RequestUri);
                 return ProcessAsyncResponse<T>(result);
             }
             catch (Exception e)
             {
-                Logging.Error(this, "{0}({1}ms): {2}", Utility.ExpandErrorMessage(e),
+                Logger.AcademicSearch.Error(this, "{0}({1}ms): {2}", Utility.ExpandErrorMessage(e),
                     sw.ElapsedMilliseconds, request.RequestUri);
                 HandleException(e);
                 return default(T);
@@ -153,7 +153,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
         {
             var webException = exception as WebException;
             if (webException?.Response != null
-                && webException.Response.ContentType.ToLower().Contains("application/json"))
+                && webException.Response.ContentType.IndexOf("application/json", StringComparison.OrdinalIgnoreCase) >= 0)
             {
                 Stream stream = null;
                 try

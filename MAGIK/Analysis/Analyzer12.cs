@@ -20,7 +20,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         {
             Debug.Assert(node1 != null);
             Debug.Assert(node2 != null);
-            Logging.Enter(this, $"{node1} -> {node2}");
+            Logger.Magik.Enter(this, $"{node1} -> {node2}");
             await ExploreInterceptionNodesAsync(node1, node2);
             var paths = new List<KgNode[]>();
             var out1 = graph.AdjacentOutVertices(node1.Id);
@@ -30,8 +30,8 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             // 2-hop
             var commonNodes = out1.Intersect(in2);
             paths.AddRange(commonNodes.Select(cn => new[] {node1, nodes[cn], node2}));
-            Logging.Success(this, "在 {0} - {1} 之间找到了 {2} 条 1/2-hop 路径。", node1.Id, node2.Id, paths.Count);
-            Logging.Exit(this);
+            Logger.Magik.Success(this, "在 {0} - {1} 之间找到了 {2} 条 1/2-hop 路径。", node1.Id, node2.Id, paths.Count);
+            Logger.Magik.Exit(this);
             return paths;
         }
     }

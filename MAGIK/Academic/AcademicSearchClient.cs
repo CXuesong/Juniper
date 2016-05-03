@@ -96,11 +96,14 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
             }
         }
 
-        /// <summary>
-        /// 并行提交分页请求时，并行的任务数量。
-        /// </summary>
-        public int ConcurrentPagingCount { get; set; } = 4;
-#endregion
+        ///// <summary>
+        ///// 并行提交分页请求时，并行的任务数量。
+        ///// </summary>
+        //public int ConcurrentPagingCount { get; set; } = 1;
+        // 并行提交会造成很多的 0 结果，白白浪费带宽。
+        public const int ConcurrentPagingCount = 1;
+
+        #endregion
 
         #region 统计信息
 #if TRACE
@@ -131,13 +134,13 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
         public async Task<EvaluationResult> EvaluateAsync(string expression, int count, int offset,
             string orderBy, string attributes)
         {
-            Logging.Enter(this, $"{expression}, ({offset},{offset + count}]");
+            Logger.AcademicSearch.Enter(this, $"{expression}; ({offset},{offset + count}]");
             var requestUrl =
                 $"{ServiceHostUrl}/evaluate?expr={expression}&model=latest&count={count}&offset={offset}&orderby={orderBy}&attributes={attributes ?? EvaluationDefaultAttributes}{QuerySuffix}";
             var request = WebRequest.Create(requestUrl);
             InitializeRequest(request, "GET");
             var result = await SendAsync<EvaluationResult>(request);
-            Logging.Exit(this, $"{result?.Entities?.Count} Entity");
+            Logger.AcademicSearch.Exit(this, $"{expression}; {result?.Entities?.Count} Entity");
             return result;
         }
 
@@ -163,7 +166,9 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
         public async Task<EvaluationResult> EvaluateAsync(string expression, int count, string orderBy, string attributes)
         {
             if (count < PagingSize) return await EvaluateAsync(expression, count, 0, orderBy, attributes);
-            Logging.Enter(this, $"{expression}, [1,{count}] Paged");
+#if TRACE
+            Logger.AcademicSearch.Enter(this, $"{expression}, [1,{count}] Paged");
+#endif
             var results = new List<Entity>();
             bool noMoreResults = false;
             for (var offset = 0; offset < count; )
@@ -186,7 +191,9 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
                 }
                 offset += sessionPages*PagingSize;
             }
-            Logging.Exit(this, $"{results.Count} Entity {(noMoreResults ? "" : " Truncated")}");
+#if TRACE
+            Logger.AcademicSearch.Exit(this, $"{expression}; {results.Count} Entity in total. {(noMoreResults ? "" : " Truncated.")}");
+#endif
             return new EvaluationResult
             {
                 Expression = expression,
@@ -209,7 +216,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
         {
             if (maxCount < 0) throw new ArgumentOutOfRangeException(nameof(maxCount));
             if (precision <= 0) throw new ArgumentOutOfRangeException(nameof(precision));
-            Logging.Enter(this, expression);
+            Logger.AcademicSearch.Enter(this, expression);
             int min = 0, max = maxCount;
             var mid = (max + min)/2;
             while ((max - min) / (float)mid > precision)
@@ -221,7 +228,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
                     max = mid;
                 mid = (max + min) / 2;
             }
-            Logging.Exit(this, mid.ToString());
+            Logger.AcademicSearch.Exit(this, mid.ToString());
             return mid;
         }
 
@@ -230,10 +237,10 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
         /// </summary>
         public async Task<bool> IsEvaluationCountGreaterThanAsync(string expression, int rhs)
         {
-            Logging.Enter(this, expression);
+            Logger.AcademicSearch.Enter(this, expression);
             var er = await EvaluateAsync(expression, 1, rhs, "");
             var result = er.Entities.Count > 0;
-            Logging.Exit(this, (result ? ">" : "<=") + rhs);
+            Logger.AcademicSearch.Exit(this, (result ? ">" : "<=") + rhs);
             return result;
         }
 
@@ -268,14 +275,13 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
         }
 
         /// <summary>
-        /// 向 Trace 输出调用统计信息。
+        /// 获取调用统计信息。
         /// </summary>
-        public void TraceStatistics()
+        public string DumpStatistics()
         {
-#if TRACE
             // 注意，此处使用 queryTime.TotalSeconds 是没有意义的。因为查询有可能并行。
-            Trace.WriteLine($"Academic Search：{queryCounter}次查询。平均{queryTimeMs/queryCounter}ms/次。");
-#endif
+            var message = $"{queryCounter}次查询。平均{queryTimeMs/queryCounter}ms/次。";
+            return message;
         }
     }
 }

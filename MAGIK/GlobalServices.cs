@@ -75,7 +75,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik
                 client.QuerySuffix = "&subscription-key=" + AcademicSearchSubscriptionKey;
                 //提醒：请使用以上访问方式，此key不可以使用学术搜索官网提供的访问方式。
             }
-            Logging.Trace(null, $"AS 客户端已经创建： {client.ServiceHostUrl} 。");
+            Logger.Magik.Trace(null, $"AS 客户端已经创建： {client.ServiceHostUrl} 。");
             return client;
         }
 
@@ -110,7 +110,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik
                 "使用 MAGIK 项目前，需要在 _private/Confidential.cs 中编写 InitializeAcademicSearchSubscriptionKey 函数的函数体，"
                 + "以将 AcademicSearchSubscriptionKey 设置为您的 Academic Search 订阅密钥。"
                 + "\n请参阅 GlobalServices.cs 以获取详情。");
-            Logging.Trace(null, "全局服务已经初始化完毕。");
+            Logger.Magik.Trace(null, "全局服务已经初始化完毕。");
         }
     }
 }

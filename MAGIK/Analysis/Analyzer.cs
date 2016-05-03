@@ -52,15 +52,15 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         /// </returns>
         public async Task<KgNode[][]> FindPathsAsync(long id1, long id2)
         {
-            Logging.Enter(this, $"{id1} -> {id2}");
+            Logger.Magik.Enter(this, $"{id1} -> {id2}");
             var sw = Stopwatch.StartNew();
             // 先找到实体/作者再说。
             var nodes = await Task.WhenAll(GetEntityOrAuthorNodeAsync(id1),
                 GetEntityOrAuthorNodeAsync(id2));
             var node1 = nodes[0];
             var node2 = nodes[1];
-            if (node1 == null) throw new ArgumentException($"在 MAG 中找不到指定的 Id：{id1}。", nameof(id1));
-            if (node2 == null) throw new ArgumentException($"在 MAG 中找不到指定的 Id：{id2}。", nameof(id2));
+            if (node1 == null) throw new ArgumentException($"在 MAG 中找不到指定的 Id/AuId：{id1}。", nameof(id1));
+            if (node2 == null) throw new ArgumentException($"在 MAG 中找不到指定的 Id/AuId：{id2}。", nameof(id2));
             // 在图中注册节点。
             RegisterNode(node1);
             RegisterNode(node2);
@@ -73,18 +73,28 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             var result = hops.SelectMany(hop => hop)
                 .Distinct(new ArrayEqualityComparer<KgNode>(KgNodeEqualityComparer.Default))
                 .ToArray();
-            Logging.Success(this, "在 {0} - {1} 之间找到了 {2} 条路径。用时： {3} 。", node1, node2, result.Length, sw.Elapsed);
-            Logging.Trace(this, "缓存图： {0} 个节点， {1} 条边。", graph.VerticesCount, graph.EdgesCount);
-            Logging.Exit(this);
+            Logger.Magik.Success(this, "在 {0} - {1} 之间找到了 {2} 条路径。用时： {3} 。", node1, node2, result.Length, sw.Elapsed);
+            Logger.Magik.Exit(this);
             return result;
         }
 
         /// <summary>
-        /// 向 Trace 输出统计信息。
+        /// 获取调用统计信息。
         /// </summary>
-        public void TraceStatistics()
+        public string DumpStatistics()
         {
-            Trace.WriteLine($"缓存图：{graph.VerticesCount}个节点，{graph.EdgesCount}条边。");
+            return $"缓存图：{graph.VerticesCount}个节点，{graph.EdgesCount}条边。";
+        }
+
+
+        /// <summary>
+        /// 向日志输出调用统计信息。
+        /// </summary>
+        public void LogStatistics()
+        {
+            Logger.Magik.Info(this, DumpStatistics());
+            Logger.Magik.Info(asClient, asClient.DumpStatistics());
+            Logger.Magik.Info(this, "缓存图： {0} 个节点， {1} 条边。", graph.VerticesCount, graph.EdgesCount);
         }
 
         /// <summary>

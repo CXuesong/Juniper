@@ -119,11 +119,11 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                     .EvaluateAsync(SearchExpressionBuilder.EntityIdEquals(Id), 2, 0);
                 if (er.Entities.Count == 0)
                 {
-                    Logging.Trace(this, "找不到 Id 对应的实体。");
+                    Logger.Magik.Trace(this, "找不到 Id 对应的实体。");
                     return EmptyNodes;
                 }
                 if (er.Entities.Count != 1)
-                    Logging.Trace(this, "Id 请求返回的实体不唯一。");
+                    Logger.Magik.Trace(this, "Id 请求返回的实体不唯一。");
                 nodes = ParseEntity(er.Entities[0]);
             }
             return nodes;

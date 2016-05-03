@@ -39,7 +39,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                 // 此节点已经被发现
                 // 断言节点类型。
                 if (nn.GetType() != node.GetType())
-                    Logging.Warn(this, "试图注册的节点{0}与已注册的节点{1}具有不同的类型。", node, nn);
+                    Logger.Magik.Warn(this, "试图注册的节点{0}与已注册的节点{1}具有不同的类型。", node, nn);
                 return false;
             }
             else
@@ -69,7 +69,6 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             var s = GetStatus(node.Id);
             if (!await s.MarkAsExploringOrUntilExplored(NodeStatus.LocalExploration))
                 return;
-            Logging.Enter(this, node);
             var newlyDiscoveredNodes = 0;
             var adj = await node.GetAdjacentNodesAsync(asClient);
             // an: Adjacent Node
@@ -79,7 +78,8 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                 RegisterEdge(node.Id, an.Id, !(an is PaperNode));
             }
             s.MarkAsExplored(NodeStatus.LocalExploration);
-            Logging.Exit(this, $"{newlyDiscoveredNodes} new nodes");
+            //Logger.Magik.Trace(this, EventId.OperationSucceeded,
+            //    "LocalExplore {0} -> {1} new nodes.", node, newlyDiscoveredNodes);
         }
 
         /// <summary>
@@ -90,7 +90,6 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             Debug.Assert(nodes != null);
             var nodesCollection = nodes as ICollection<PaperNode> ?? nodes.ToArray();
             if (nodesCollection.Count == 0) return;
-            Logging.Enter(this, $"[{nodesCollection.Count} nodes]");
             var newlyDiscoveredNodes = 0;
             try
             {
@@ -111,7 +110,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                             SEB.EntityIdIn(idc),
                             SEB.MaxChainedIdCount);
                         if (er.Entities.Count < idc.Count)
-                            Logging.Warn(this, "批量查询实体 Id 时，返回结果数量不足。期望：{0}，实际：{1}。", idc.Count, er.Entities.Count);
+                            Logger.Magik.Warn(this, "批量查询实体 Id 时，返回结果数量不足。期望：{0}，实际：{1}。", idc.Count, er.Entities.Count);
                         return er.Entities.Select(et => new PaperNode(et));
                     }).ToArray();   // 先让网络通信启动起来。
                 Func<PaperNode, Task> explore = async paperNode =>
@@ -136,7 +135,9 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             }
             finally
             {
-                Logging.Exit(this, $"{newlyDiscoveredNodes} new nodes");
+                //Logger.Magik.Trace(this, EventId.OperationSucceeded,
+                //    "LocalExplore [{0}xPaperNode] -> {1} new nodes.",
+                //    nodesCollection.Count, newlyDiscoveredNodes);
             }
         }
 
@@ -204,7 +205,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                 if (au != null) return new AuthorNode(au);
                 if (et.Id == id) return new PaperNode(et);
             }
-            Logging.Warn(this, $"查找Id/AuId {id} 时接收到了不正确的信息。");
+            Logger.Magik.Warn(this, $"查找Id/AuId {id} 时接收到了不正确的信息。");
             return null;
         }
 

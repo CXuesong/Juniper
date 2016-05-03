@@ -15,7 +15,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         {
             Debug.Assert(node1 != null);
             Debug.Assert(node2 != null);
-            Logging.Enter(this, $"{node1} -> {node2}");
+            Logger.Magik.Enter(this, $"{node1} -> {node2}");
             // Notation
             // Node1 -- Node3 -- Node4 -- Node2
             var paths = new List<KgNode[]>();
@@ -54,8 +54,8 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                         new[] {node1, nodes[id3], nodes[id4], node2}));
                 }
             }
-            Logging.Success(this, "在 {0} - {1} 之间找到了 {2} 条 3-hop 路径。", node1.Id, node2.Id, paths.Count);
-            Logging.Exit(this);
+            Logger.Magik.Success(this, "在 {0} - {1} 之间找到了 {2} 条 3-hop 路径。", node1.Id, node2.Id, paths.Count);
+            Logger.Magik.Exit(this);
             return paths;
         }
     }
