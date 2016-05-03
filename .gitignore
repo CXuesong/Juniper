@@ -245,4 +245,4 @@ ModelManifest.xml
 .fake/
 
 # Private Storage
-/MAGIK/_private
+_private/

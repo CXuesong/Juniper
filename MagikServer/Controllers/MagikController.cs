@@ -17,6 +17,9 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikServer.Controllers
     /// </summary>
     public class MagikController : ApiController
     {
+        /// <summary>
+        /// 主要 API 入口。
+        /// </summary>
         [Route("magik/v1/paths")]
         [ArgumentExceptionFilter]
         public async Task<IHttpActionResult> Get(string expr)
