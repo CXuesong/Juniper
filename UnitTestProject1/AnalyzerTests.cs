@@ -23,7 +23,7 @@ namespace UnitTestProject1
             Trace.WriteLine(asc.DumpStatistics());
             Trace.WriteLine(a.DumpStatistics());
             //a.TraceGraph();
-            Trace.WriteLine($"Paths {id1} -> {id2} [{paths.Length}]");
+            Trace.WriteLine($"路径 {id1} -> {id2} [{paths.Length}]");
             Trace.Indent();
             foreach (var p in paths)
             {
@@ -33,8 +33,8 @@ namespace UnitTestProject1
             if (assertPathExists) Assert.AreNotEqual(0, paths.Length);
             foreach (var p in paths)
             {
-                Assert.IsTrue(p.Length >= 2);   // >= 1-hop
-                Assert.IsTrue(p.Length <= 4);   // <= 3-hop
+                Assert.IsTrue(p.Length >= 2); // >= 1-hop
+                Assert.IsTrue(p.Length <= 4); // <= 3-hop
                 Assert.AreEqual(id1, p[0].Id);
                 Assert.AreEqual(id2, p[p.Length - 1].Id);
             }
@@ -111,6 +111,16 @@ namespace UnitTestProject1
             AssertPathExists(paths, 2128366083, 2148606196, 2112090702);
             AssertPathExists(paths, 2128366083, 2153624566, 2112090702);
             AssertPathExists(paths, 2128366083, 2018045523, 2112090702);
+        }
+
+        /// <summary>
+        /// 罱橪朗壌 的测试样例。
+        /// </summary>
+        [TestMethod]
+        public void AnalyzerTestMethod190()
+        {
+            var paths = FindPaths(1502768748, 2122841972, true);
+            Assert.IsTrue(paths.Count >= 190);
         }
     }
 }

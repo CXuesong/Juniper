@@ -75,6 +75,10 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                 .ToArray();
             Logger.Magik.Success(this, "在 {0} - {1} 之间找到了 {2} 条路径。用时： {3} 。", node1, node2, result.Length, sw.Elapsed);
             Logger.Magik.Exit(this);
+            //var xxx = await FindHop3PathsAsync(node1, node2);
+            //var x = graph.Contains(1982462162, 2139873966);
+            //var x1 = graph.Contains(2139873966, 2122841972);
+            //var x2 = graph.Contains(2122841972, 676500258);
             return result;
         }
 
@@ -158,7 +162,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             /// 如果成功将节点置于 <see cref="ExplorationStatus.Exploring" /> 状态，
             /// 则返回 true 。指示当前线程应当开始探索对应的节点。
             /// </returns>
-            public bool MarkAsExploring(object domainKey)
+            public bool TryMarkAsExploring(object domainKey)
             {
                 if (domainKey == null) throw new ArgumentNullException(nameof(domainKey));
                 syncLock.EnterWriteLock();

@@ -62,7 +62,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
     /// <summary>
     /// 论文节点。
     /// </summary>
-    public class PaperNode : KgNode
+    public sealed class PaperNode : KgNode
     {
         private readonly List<KgNode> loadedNodes;
 
@@ -150,7 +150,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
     /// <summary>
     /// 作者节点。
     /// </summary>
-    public class AuthorNode : KgNode
+    public sealed class AuthorNode : KgNode
     {
         // 注意！一个作者可以分属不同的机构。但一般也就属于那么几家而已。
         private static readonly PaperNode[] EmptyPapers = new PaperNode[0];
@@ -221,7 +221,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
     /// <summary>
     /// 组织节点。
     /// </summary>
-    public class AffiliationNode : KgNode
+    public sealed class AffiliationNode : KgNode
     {
         public AffiliationNode(Author author) : base(author.AffiliationId.Value, author.AffiliationName)
         {
@@ -244,7 +244,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
     /// <summary>
     /// 期刊节点。
     /// </summary>
-    public class JournalNode : KgNode
+    public sealed class JournalNode : KgNode
     {
         public const int JOURNAL_MAX_PAPERS = 2000000;
 
@@ -269,13 +269,8 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
     /// <summary>
     /// 会议节点。
     /// </summary>
-    public class ConferenceNode : KgNode
+    public sealed class ConferenceNode : KgNode
     {
-        /// <summary>
-        /// TODO 我们需要调查一下一个会议究竟能有多高产。
-        /// </summary>
-        public const int CONFERENCE_MAX_PAPERS = 200000;
-
         public ConferenceNode(Conference entity) : base(entity.Id, entity.Name)
         {
         }
@@ -297,7 +292,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
     /// <summary>
     /// 研究领域节点。
     /// </summary>
-    public class FieldOfStudyNode : KgNode
+    public sealed class FieldOfStudyNode : KgNode
     {
         public FieldOfStudyNode(FieldOfStudy entity) : base(entity.Id, entity.Name)
         {
@@ -317,6 +312,9 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         }
     }
 
+    /// <summary>
+    /// 用于根据 Id 比较两个 <see cref="KgNode"/> 的等价性。
+    /// </summary>
     public class KgNodeEqualityComparer : EqualityComparer<KgNode>
     {
         public new static readonly KgNodeEqualityComparer Default = new KgNodeEqualityComparer();

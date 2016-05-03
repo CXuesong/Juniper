@@ -16,8 +16,20 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
     /// </remarks>
     public static class SearchExpressionBuilder
     {
-        // 
-        public const int MaxChainedIdCount = 100;
+        /// <summary>
+        /// 最长的查询条件（整个表达式）的长度。
+        /// </summary>
+        public const int MaxQueryLength = 2048;
+
+        /// <summary>
+        /// 最大允许的 And(Id=2026561929,) 并联数量。
+        /// </summary>
+        public const int MaxChainedIdCount = 85;
+
+        /// <summary>
+        /// 最大允许的 And(Composite(AA.AuId=2026561929),) 并联数量。
+        /// </summary>
+        public const int MaxChainedAuIdCount = 50;
 
         public static string EntityIdEquals(long id)
             => $"Id={id}";
@@ -26,7 +38,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
             => $"Ti={title}";
 
         /// <summary>
-        /// 要求实体 Id 是给定集合中的一个 Id 。ids 数量不应当超过 100 。
+        /// 要求实体 Id 是给定集合中的一个 Id 。ids 数量不应当超过 85 。
         /// </summary>
         public static string EntityIdIn(IEnumerable<long> ids)
         {
@@ -46,6 +58,22 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
 
         public static string AuthorIdContains(long id)
             => $"Composite(AA.AuId={id})";
+
+        /// <summary>
+        /// 要求实体存在一个作者的 AuId 是给定集合中的一个 Id 。ids 数量不应当超过 50 。
+        /// </summary>
+        public static string AuthorIdIn(IEnumerable<long> ids)
+        {
+            if (ids == null) throw new ArgumentNullException(nameof(ids));
+            Debug.Assert(ids.Count() <= MaxChainedIdCount);
+            string expr = null;
+            foreach (var id in ids)
+            {
+                if (expr == null) expr = AuthorIdContains(id);
+                else expr = Or(expr, AuthorIdContains(id));
+            }
+            return expr;
+        }
 
         public static string AffiliationIdContains(long id)
             => $"Composite(AA.AfId={id})";

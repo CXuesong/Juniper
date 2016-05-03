@@ -35,7 +35,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             {
                 // 在 FindPathsAsync 中应该已经可以保证 node1 是论文或作者 。
                 Debug.Assert(author1 != null);
-                await ExploreAuthorPapersAsync(author1);
+                await ExploreAuthorsPapersAsync(new[] {author1});
             }
             // 从 Id1 出发，探索所有可能的 Id3 。
             var id4PredecessorsDict = new Dictionary<long, List<long>>();

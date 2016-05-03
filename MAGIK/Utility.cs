@@ -71,7 +71,8 @@ namespace Microsoft.Contests.Bop.Participants.Magik
                 partition.Add(item);
                 if (partition.Count == partitionSize)
                 {
-                    yield return partition;
+                    // 还是老老实实地创建副本吧。以免被坑。
+                    yield return partition.ToArray();
                     partition.Clear();
                 }
             }

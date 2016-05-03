@@ -130,6 +130,23 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         /// </summary>
         public int EdgesCount => _EdgesCount;
 
+        /// <summary>
+        /// 判断图中是否包含某条有向边。
+        /// </summary>
+        public bool Contains(TVertex vertex1, TVertex vertex2)
+        {
+            var ve1 = vertices[vertex1];
+            ve1.SyncLock.EnterReadLock();
+            try
+            {
+                return ve1.AdjacentOutVertices.Contains(vertex2);
+            }
+            finally
+            {
+                ve1.SyncLock.ExitReadLock();
+            }
+        }
+
         private VertexEntry GetVertexEntry(TVertex vertex, bool allowCreation)
         {
             if (vertex == null) throw new ArgumentNullException(nameof(vertex));
