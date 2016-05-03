@@ -12,9 +12,9 @@ using Newtonsoft.Json;
 namespace Microsoft.Contests.Bop.Participants.Magik.MagikServer
 {
     /// <summary>
-    /// 为 HTTP 请求过程中发生的 <see cref="ArgumentException"/> 提供回复生成方案。
+    /// 为 HTTP 请求过程中发生的 <see cref="ArgumentException"/> 提供 JSON 回复生成方案。
     /// </summary>
-    public class ArgumentExceptionFilterAttribute : ExceptionFilterAttribute
+    public class JsonArgumentExceptionFilterAttribute : ExceptionFilterAttribute
     {
         public override void OnException(HttpActionExecutedContext context)
         {
@@ -27,6 +27,34 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikServer
                         {
                             error = new Error(context.Exception.GetType().Name,
                                 context.Exception.Message)
+                        }), null, Utility.JsonMediaType)
+                };
+                context.Response = resp;
+            }
+        }
+    }
+
+    /// <summary>
+    /// 为 HTTP 请求过程中发生的其它类型的异常提供状态为 500 的 JSON 回复生成方案。
+    /// </summary>
+    public class JsonExceptionsFilterAttribute : ExceptionFilterAttribute
+    {
+        public override void OnException(HttpActionExecutedContext context)
+        {
+            if (context.Exception != null)
+            {
+                var resp = new HttpResponseMessage(HttpStatusCode.InternalServerError)
+                {
+                    Content = new StringContent(JsonConvert.SerializeObject(
+                        new
+                        {
+#if DEBUG
+                            error = new Error(context.Exception.GetType().Name,
+                                context.Exception.Message)
+#else
+                            error = new Error(context.Exception.GetType().Name,
+                                "")
+#endif
                         }), null, Utility.JsonMediaType)
                 };
                 context.Response = resp;

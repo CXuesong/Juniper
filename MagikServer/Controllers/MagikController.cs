@@ -21,7 +21,8 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikServer.Controllers
         /// 主要 API 入口。
         /// </summary>
         [Route("magik/v1/paths")]
-        [ArgumentExceptionFilter]
+        [JsonArgumentExceptionFilter]
+        [JsonExceptionsFilterAttribute]
         public async Task<IHttpActionResult> Get(string expr)
         {
             long[] idPair;
@@ -38,7 +39,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikServer.Controllers
             }
             if (idPair.Length != 2)
                 throw new ArgumentException("无效的节点对。节点对有且仅有两个元素。", nameof(expr));
-            var analzer = new Analyzer();
+            var analzer = new Analyzer(GlobalServices.CreateASClient());
             var paths = await analzer.FindPathsAsync(idPair[0], idPair[1]);
             // 返回只要 Id 就可以了。
             // 由于结构比较简单，所以可以强行 json 。

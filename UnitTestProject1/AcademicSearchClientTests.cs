@@ -38,23 +38,10 @@ namespace UnitTestProject1
             }
         }
 
-        [TestInitialize]
-        public void OnTestInitialize()
-        {
-            // 这样可以更新调用计数器。
-            GlobalServices.ASClient = GlobalServices.CreateASClient();
-        }
-
-        [TestCleanup]
-        public void OnTestCleanup()
-        {
-            GlobalServices.ASClient.TraceStatistics();
-        }
-
         [TestMethod]
         public void ASClientTestMethod1()
         {
-            var client = GlobalServices.ASClient;
+            var client = GlobalServices.CreateASClient();
             var result = TestUtility.AwaitSync(
                 client.EvaluateAsync("Composite(AA.AuN=='jaime teevan')", 10, 0,
                     GlobalServices.DebugASEvaluationAttributes));
@@ -65,7 +52,7 @@ namespace UnitTestProject1
         [TestMethod]
         public void ASClientTestMethod2()
         {
-            var client = GlobalServices.ASClient;
+            var client = GlobalServices.CreateASClient();
             var result = TestUtility.AwaitSync(
                 client.EvaluateAsync("Composite(AA.AuN=='meredith ringel morris')", 10, 0,
                     GlobalServices.DebugASEvaluationAttributes));
@@ -76,7 +63,7 @@ namespace UnitTestProject1
         [TestMethod]
         public void ASClientTestMethod3()
         {
-            var client = GlobalServices.ASClient;
+            var client = GlobalServices.CreateASClient();
             var result = TestUtility.AwaitSync(
                 client.EvaluateAsync("Composite(AA.AfN=='microsoft')", 5000,
                     "Id"));
@@ -92,7 +79,7 @@ namespace UnitTestProject1
         public void ASClientTestMethod4EstimateCount()
         {
             const int maxCount = 100000;
-            var client = GlobalServices.ASClient;
+            var client = GlobalServices.CreateASClient();
             var est = TestUtility.AwaitSync(client.EstimateEvaluationCountAsync(
                 "Composite(AA.AfN=='microsoft')", maxCount, 0.01f));
             Trace.WriteLine($"{est} Entities.");

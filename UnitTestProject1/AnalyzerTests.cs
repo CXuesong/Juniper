@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Contests.Bop.Participants.Magik;
+using Microsoft.Contests.Bop.Participants.Magik.Academic;
 using Microsoft.Contests.Bop.Participants.Magik.Analysis;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -16,18 +17,20 @@ namespace UnitTestProject1
     {
         private ICollection<KgNode[]> FindPaths(long id1, long id2, bool assertPathExists)
         {
-            var a = new Analyzer();
+            var asc = GlobalServices.CreateASClient();
+            var a = new Analyzer(asc);
             var paths = TestUtility.AwaitSync(a.FindPathsAsync(id1, id2));
-            Trace.WriteLine($"Paths {id1} -> {id2} [{paths.Count}]");
+            asc.TraceStatistics();
+            a.TraceStatistics();
+            //a.TraceGraph();
+            Trace.WriteLine($"Paths {id1} -> {id2} [{paths.Length}]");
             Trace.Indent();
             foreach (var p in paths)
             {
                 Trace.WriteLine(string.Join("\n\t->", (IEnumerable<KgNode>) p));
             }
             Trace.Unindent();
-            a.TraceStatistics();
-            //a.TraceGraph();
-            if (assertPathExists) Assert.AreNotEqual(0, paths.Count);
+            if (assertPathExists) Assert.AreNotEqual(0, paths.Length);
             foreach (var p in paths)
             {
                 Assert.IsTrue(p.Length >= 2);   // >= 1-hop
@@ -42,19 +45,6 @@ namespace UnitTestProject1
         {
             Assert.IsTrue(paths.Any(p => p.Select(n => n.Id).SequenceEqual(idPath)),
                 $"在路径集合[{paths.Count}]中找不到路径 {string.Join(" -> ", idPath)} 。");
-        }
-
-        [TestInitialize]
-        public void OnTestInitialize()
-        {
-            // 这样可以更新调用计数器。
-            GlobalServices.ASClient = GlobalServices.CreateASClient();
-        }
-
-        [TestCleanup]
-        public void OnTestCleanup()
-        {
-            GlobalServices.ASClient.TraceStatistics();
         }
 
         /// <summary>

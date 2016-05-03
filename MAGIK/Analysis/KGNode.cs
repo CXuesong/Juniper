@@ -46,8 +46,9 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         /// 注意，此函数对图进行简单探索。对于潜在的可能列出大量结果的情况，
         /// 此函数不予考虑。这一类查询需要根据上下文进一步限定条件。
         /// </summary>
+        /// <param name="asClient"></param>
         /// <seealso cref="Analyzer.ExploreInterceptionNodesAsync"/>
-        public abstract Task<ICollection<KgNode>> GetAdjacentNodesAsync();
+        public abstract Task<ICollection<KgNode>> GetAdjacentNodesAsync(AcademicSearchClient asClient);
 
         /// <summary>
         /// 返回表示当前对象的字符串。
@@ -108,12 +109,13 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         /// 异步枚举由与此节点相连的邻节点。使用节点对来表示边的指向。
         /// （除了反向引用节点以外，因为这样的节点可能会很多。）
         /// </summary>
-        public override async Task<ICollection<KgNode>> GetAdjacentNodesAsync()
+        /// <param name="asClient"></param>
+        public override async Task<ICollection<KgNode>> GetAdjacentNodesAsync(AcademicSearchClient asClient)
         {
             var nodes = loadedNodes;
             if (loadedNodes == null)
             {
-                var er = await GlobalServices.ASClient
+                var er = await asClient
                     .EvaluateAsync(SearchExpressionBuilder.EntityIdEquals(Id), 2, 0);
                 if (er.Entities.Count == 0)
                 {
@@ -125,36 +127,6 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                 nodes = ParseEntity(er.Entities[0]);
             }
             return nodes;
-        }
-
-        /// <summary>
-        /// 异步估计此文章的被引用次数。（10%误差）
-        /// </summary>
-        public Task<int> EstimateBackReferenceEdgesCountAsync()
-        {
-            return GlobalServices.ASClient.EstimateEvaluationCountAsync(
-                SearchExpressionBuilder.ReferenceIdContains(Id), Assumptions.PaperMaxCitations);
-        }
-
-        /// <summary>
-        /// 异步判断文章的被引用次数是否大于某一数值。
-        /// </summary>
-        public Task<bool> IsBackReferenceEdgesCountGreaterThanAsync(int rhs)
-        {
-            return GlobalServices.ASClient.IsEvaluationCountGreaterThanAsync(
-                SearchExpressionBuilder.ReferenceIdContains(Id), rhs);
-        }
-
-        /// <summary>
-        /// 获取引用到此论文的所有节点。
-        /// </summary>
-        public async Task<ICollection<PaperNode>> GetBackReferencePapers()
-        {
-            var backReferenceQueryTask = GlobalServices.ASClient.EvaluateAsync(
-                SearchExpressionBuilder.ReferenceIdContains(Id), Assumptions.PaperMaxCitations);
-            // Id -> *Id (RId)
-            var er1 = await backReferenceQueryTask;
-            return er1.Entities.Select(et => new PaperNode(et)).ToArray();
         }
 
         /// <summary>
@@ -199,7 +171,8 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         /// <summary>
         /// 异步枚举由与此节点相连的邻节点。使用节点对来表示边的指向。
         /// </summary>
-        public override Task<ICollection<KgNode>> GetAdjacentNodesAsync()
+        /// <param name="asClient"></param>
+        public override Task<ICollection<KgNode>> GetAdjacentNodesAsync(AcademicSearchClient asClient)
         {
             // AA.AuId -> Id
             // Id -> AA.AuId
@@ -217,9 +190,9 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         /// <summary>
         /// 检索此作者参与的所有论文。
         /// </summary>
-        public async Task<ICollection<PaperNode>> GetPapersAsync()
+        public async Task<ICollection<PaperNode>> GetPapersAsync(AcademicSearchClient asClient)
         {
-            var er = await GlobalServices.ASClient.EvaluateAsync(
+            var er = await asClient.EvaluateAsync(
                 SearchExpressionBuilder.AuthorIdContains(Id),
                 Assumptions.AuthorMaxPapers);
             if (er.Entities.Count == 0) return EmptyPapers;
@@ -261,7 +234,8 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         /// <summary>
         /// 异步枚举由与此节点相连的邻节点。使用节点对来表示边的指向。
         /// </summary>
-        public override Task<ICollection<KgNode>> GetAdjacentNodesAsync()
+        /// <param name="asClient"></param>
+        public override Task<ICollection<KgNode>> GetAdjacentNodesAsync(AcademicSearchClient asClient)
         {
             return Task.FromResult((ICollection<KgNode>) EmptyNodes);
         }
@@ -285,7 +259,8 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         /// <summary>
         /// 异步枚举由与此节点相连的邻节点。使用节点对来表示边的指向。
         /// </summary>
-        public override Task<ICollection<KgNode>> GetAdjacentNodesAsync()
+        /// <param name="asClient"></param>
+        public override Task<ICollection<KgNode>> GetAdjacentNodesAsync(AcademicSearchClient asClient)
         {
             return Task.FromResult((ICollection<KgNode>)EmptyNodes);
         }
@@ -312,7 +287,8 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         /// <summary>
         /// 异步枚举由与此节点相连的邻节点。使用节点对来表示边的指向。
         /// </summary>
-        public override Task<ICollection<KgNode>> GetAdjacentNodesAsync()
+        /// <param name="asClient"></param>
+        public override Task<ICollection<KgNode>> GetAdjacentNodesAsync(AcademicSearchClient asClient)
         {
             return Task.FromResult((ICollection<KgNode>)EmptyNodes);
         }
@@ -334,7 +310,8 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         /// <summary>
         /// 异步枚举由与此节点相连的邻节点。使用节点对来表示边的指向。
         /// </summary>
-        public override Task<ICollection<KgNode>> GetAdjacentNodesAsync()
+        /// <param name="asClient"></param>
+        public override Task<ICollection<KgNode>> GetAdjacentNodesAsync(AcademicSearchClient asClient)
         {
             return Task.FromResult((ICollection<KgNode>)EmptyNodes);
         }

@@ -87,7 +87,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik
             var agg = ex as AggregateException;
             if (agg != null)
                 return string.Join(";", agg.InnerExceptions.Select(ExpandErrorMessage));
-            return $"{ex.GetType().Name}:ex.Message";
+            return $"{ex.GetType().Name}:{ex.Message}";
         }
 
         ///// <summary>

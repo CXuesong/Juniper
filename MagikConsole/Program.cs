@@ -83,7 +83,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikConsole
         private static async Task FindPathsAsync(long id1, long id2)
         {
             // 消除本地缓存对性能的影响。
-            var analyzer = new Analyzer();
+            var analyzer = new Analyzer(GlobalServices.CreateASClient());
             Console.WriteLine("请稍后……");
             var sw = Stopwatch.StartNew();
             var paths = await analyzer.FindPathsAsync(id1, id2);

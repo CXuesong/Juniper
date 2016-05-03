@@ -13,8 +13,6 @@ namespace Microsoft.Contests.Bop.Participants.Magik
     /// </summary>
     public static partial class GlobalServices
     {
-        private static AcademicSearchClient _AsClient;
-
         /// <summary>
         /// 是否使用旗舰版的 Key 。
         /// </summary>
@@ -59,15 +57,6 @@ namespace Microsoft.Contests.Bop.Participants.Magik
         /// 获取 Academic Search 订阅密钥。
         /// </summary>
         internal static string AcademicSearchSubscriptionKey { get; private set; }
-
-        /// <summary>
-        /// 获取/设置应用程序默认使用 Academic Search 客户端。
-        /// </summary>
-        public static AcademicSearchClient ASClient
-        {
-            get { return _AsClient; }
-            set { _AsClient = value; }
-        }
 
         /// <summary>
         /// 创建一个新的 Academic Search 客户端。
@@ -121,7 +110,6 @@ namespace Microsoft.Contests.Bop.Participants.Magik
                 "使用 MAGIK 项目前，需要在 _private/Confidential.cs 中编写 InitializeAcademicSearchSubscriptionKey 函数的函数体，"
                 + "以将 AcademicSearchSubscriptionKey 设置为您的 Academic Search 订阅密钥。"
                 + "\n请参阅 GlobalServices.cs 以获取详情。");
-            ASClient = CreateASClient();
             Logging.Trace(null, "全局服务已经初始化完毕。");
         }
     }

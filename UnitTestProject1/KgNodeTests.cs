@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using Microsoft.Contests.Bop.Participants.Magik;
+using Microsoft.Contests.Bop.Participants.Magik.Academic;
 using Microsoft.Contests.Bop.Participants.Magik.Analysis;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -25,6 +26,17 @@ namespace UnitTestProject1
             }
         }
 
+        private AcademicSearchClient _AsClient;
+
+        private AcademicSearchClient asClient
+        {
+            get
+            {
+                if (_AsClient == null) _AsClient = GlobalServices.CreateASClient();
+                return _AsClient;
+            }
+        }
+
         /// <summary>
         /// 对 PaperNode 进行测试。
         /// </summary>
@@ -35,8 +47,8 @@ namespace UnitTestProject1
             // 2061503185: implicit feedback for inferring user preference a bibliography
             var paper1 = new PaperNode(2157025439, "what do people ask ...");
             var paper2 = new PaperNode(2061503185, "implicit feedback for inferring ...");
-            var adj1 = TestUtility.AwaitSync(paper1.GetAdjacentNodesAsync());
-            var adj2 = TestUtility.AwaitSync(paper2.GetAdjacentNodesAsync());
+            var adj1 = TestUtility.AwaitSync(paper1.GetAdjacentNodesAsync(asClient));
+            var adj2 = TestUtility.AwaitSync(paper2.GetAdjacentNodesAsync(asClient));
             // Author + Conference/Journal + Field of Study + References
             Assert.AreEqual(3 + 1 + 3 + 26, adj1.Count);
             // Authors
@@ -77,8 +89,8 @@ namespace UnitTestProject1
             // 1982462162: Jaime Teevan
             var author1 = new AuthorNode(2123314761, "Meredith Ringel Morris");
             var author2 = new AuthorNode(1982462162, "Jaime Teevan");
-            var adj1 = TestUtility.AwaitSync(author1.GetAdjacentNodesAsync());
-            var adj2 = TestUtility.AwaitSync(author2.GetAdjacentNodesAsync());
+            var adj1 = TestUtility.AwaitSync(author1.GetAdjacentNodesAsync(asClient));
+            var adj2 = TestUtility.AwaitSync(author2.GetAdjacentNodesAsync(asClient));
             Trace.WriteLine($"{author1} : {adj1.Count} nodes.");
             Trace.WriteLine($"\t{adj1.OfType<PaperNode>().Count()} papers");
             Trace.WriteLine($"\t{adj1.OfType<AffiliationNode>().Count()} affiliations");
@@ -101,8 +113,8 @@ namespace UnitTestProject1
             // 63966007: Massachusetts Institute Of Technology
             var affiliation1 = new AffiliationNode(1290206253, "Microsoft");
             var affiliation2 = new AffiliationNode(63966007, "Massachusetts Institute Of Technology");
-            var adj1 = TestUtility.AwaitSync(affiliation1.GetAdjacentNodesAsync());
-            var adj2 = TestUtility.AwaitSync(affiliation2.GetAdjacentNodesAsync());
+            var adj1 = TestUtility.AwaitSync(affiliation1.GetAdjacentNodesAsync(asClient));
+            var adj2 = TestUtility.AwaitSync(affiliation2.GetAdjacentNodesAsync(asClient));
             Assert.IsTrue(adj1.Count/2 >= 1000);
             Assert.IsTrue(adj2.Count/2 >= 1000);
         }

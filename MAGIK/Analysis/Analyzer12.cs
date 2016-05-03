@@ -1,4 +1,6 @@
-﻿using System;
+﻿//  Analyzer    1/2-hop
+
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;

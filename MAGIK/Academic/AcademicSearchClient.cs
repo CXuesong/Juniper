@@ -240,9 +240,17 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
         /// <summary>
         /// 异步判断某表达式是否有查询结果。
         /// </summary>
-        public Task<bool> EvaluationHasResult(string expression)
+        public Task<bool> EvaluationHasResultAsync(string expression)
         {
             return IsEvaluationCountGreaterThanAsync(expression, 0);
+        }
+
+        /// <summary>
+        /// 客户端预热。
+        /// </summary>
+        public async Task WarmUp()
+        {
+            await EvaluationHasResultAsync("Id=0");
         }
 
         private void InitializeRequest(WebRequest request, string method)
