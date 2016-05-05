@@ -42,7 +42,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik
         /// 另外，官网上把 J.JId 写成 J.Id ，表示我也是醉了。 CId 同理。
         /// </remarks>
         public const string DebugASEvaluationAttributes =
-            "Id,Ti,Y,AA.AuN,AA.AuId,AA.AfN,AA.AfId,F.FN,F.FId,J.JN,J.JId,C.CN,C.CId,RId";
+            "Id,Ti,Y,AA.AuN,AA.AuId,AA.AfN,AA.AfId,F.FN,F.FId,J.JN,J.JId,C.CN,C.CId,RId,CC";
 
         /// <summary>
         /// 适用于 RELEASE 使用的 Academic Search 搜索要求返回的属性列表。
@@ -51,7 +51,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik
         /// 请参阅 https://www.microsoft.com/cognitive-services/en-us/academic-knowledge-api/documentation/entityattributes 。
         /// </remarks>
         public const string ReleaseASEvaluationAttributes =
-            "Id,Y,AA.AuId,AA.AfId,F.FId,J.JId,C.CId,RId";
+            "Id,Y,AA.AuId,AA.AfId,F.FId,J.JId,C.CId,RId,CC";
 
         /// <summary>
         /// 获取 Academic Search 订阅密钥。

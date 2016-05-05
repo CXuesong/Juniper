@@ -19,6 +19,6 @@ namespace Microsoft.Contests.Bop.Participants.Magik
         /// <summary>
         /// 一篇论文最多能被引用的次数。
         /// </summary>
-        public const int PaperMaxCitations = 50000;
+        public const int PaperMaxCitations = 100000;
     }
 }

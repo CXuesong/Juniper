@@ -22,7 +22,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         /// </summary>
         private NodeStatus GetStatus(long id)
         {
-            //Debug.Assert(graph.Vertices.Contains(id));
+            Debug.Assert(graph.Vertices.Contains(id));
             return status.GetOrAdd(id, i => new NodeStatus());
         }
 
@@ -78,7 +78,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             if (!await s.MarkAsExploringOrUntilExplored(NodeStatus.LocalExploration))
                 return;
             var newlyDiscoveredNodes = 0;
-            if (RegisterNode(node)) newlyDiscoveredNodes++;
+            //if (RegisterNode(node)) newlyDiscoveredNodes++;
             var adj = await node.GetAdjacentNodesAsync(asClient);
             // an: Adjacent Node
             foreach (var an in adj)
@@ -228,7 +228,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                         // 此处还可以注册 paper 与其所有作者之间的关系。
                         // 这样做的好处是，万一 author1 和 author2 同时写了一篇论文。
                         // 在这里就可以发现了。
-                        //RegisterNode(paper);  <- 交给 LocalExploreAsync 了。
+                        RegisterNode(paper);
                         var localExploreTask = LocalExploreAsync(paper);
                         // 为作者 AA.AuId1 注册所有可能的机构。
                         // 这里比较麻烦，因为一个作者可以属于多个机构，所以

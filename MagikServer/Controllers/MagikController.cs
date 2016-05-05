@@ -23,7 +23,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikServer.Controllers
         [Route("magik/v1/paths")]
         [JsonArgumentExceptionFilter]
         [JsonExceptionsFilter]
-        public async Task<IHttpActionResult> Get(string expr)
+        public Task<IHttpActionResult> Get(string expr)
         {
             long[] idPair;
             try
@@ -37,11 +37,27 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikServer.Controllers
             }
             if (idPair.Length != 2)
                 throw new ArgumentException("无效的节点对。节点对有且仅有两个元素。", nameof(expr));
+            return Get(idPair[0], idPair[1]);
+        }
+
+        /// <summary>
+        /// 主要 API 入口。（BOP）
+        /// </summary>
+        /// <remarks>
+        /// For each test case, Judgement System will send a GET request to
+        /// http://{your_prefix}.chinacloudapp.cn/{your_path}?id1={id1}&id2={id2}
+        /// then calculate your score by accuracy and running time.
+        /// </remarks>
+        [Route("magik/v1/paths")]
+        [JsonArgumentExceptionFilter]
+        [JsonExceptionsFilter]
+        public async Task<IHttpActionResult> Get(long id1, long id2)
+        {
             var asClient = GlobalServices.CreateASClient();
             var analyzer = new Analyzer(asClient);
             try
             {
-                var paths = await analyzer.FindPathsAsync(idPair[0], idPair[1]);
+                var paths = await analyzer.FindPathsAsync(id1, id2);
                 // 返回只要 Id 就可以了。
                 // 由于结构比较简单，所以可以强行 json 。
                 var resultBuilder = new StringBuilder("[");
