@@ -122,5 +122,35 @@ namespace UnitTestProject1
             var paths = FindPaths(1502768748, 2122841972, true);
             Assert.IsTrue(paths.Count >= 190);
         }
+
+        /// <summary>
+        /// BOP 5-5 放出的样例1。
+        /// </summary>
+        [TestMethod]
+        public void AnalyzerTestBop1()
+        {
+            var paths = FindPaths(2251253715, 2180737804, true);
+            Assert.AreEqual(14, paths.Count);
+        }
+
+        /// <summary>
+        /// BOP 5-5 放出的样例2。
+        /// </summary>
+        [TestMethod]
+        public void AnalyzerTestBop2()
+        {
+            var paths = FindPaths(2147152072, 189831743, true);
+            Assert.AreEqual(18, paths.Count);
+        }
+
+        /// <summary>
+        /// BOP 5-5 放出的样例2。
+        /// </summary>
+        [TestMethod]
+        public void AnalyzerTestBop3()
+        {
+            var paths = FindPaths(2332023333, 2310280492, true);
+            Assert.AreEqual(1, paths.Count);
+        }
     }
 }
