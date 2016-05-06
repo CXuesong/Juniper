@@ -65,6 +65,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
     public sealed class PaperNode : KgNode
     {
         private readonly List<KgNode> loadedNodes;
+        private int _CitationCount;
 
         public PaperNode(Entity entity) : base(entity.Id, entity.Title)
         {
@@ -85,6 +86,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         private List<KgNode> ParseEntity(Entity entity)
         {
             Debug.Assert(entity != null);
+            _CitationCount = entity.CitationCount;
             // Id <-> AA.AuId
             var nodes = entity.Authors.Select(au =>
                 new AuthorNode(au)).Cast<KgNode>().ToList();
@@ -143,6 +145,18 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             {
                 ValidateCache();
                 return loadedNodes.OfType<AuthorNode>();
+            }
+        }
+
+        /// <summary>
+        /// 论文被引用的次数。
+        /// </summary>
+        public int CitationCount
+        {
+            get
+            {
+                ValidateCache();
+                return _CitationCount;
             }
         }
     }

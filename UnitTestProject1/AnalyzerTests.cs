@@ -134,6 +134,18 @@ namespace UnitTestProject1
         }
 
         /// <summary>
+        /// Benzhong 的测试样例。
+        /// Elecky 表示有 5598 条。
+        /// 但我觉得有 5616 条。
+        /// </summary>
+        [TestMethod]
+        public void AnalyzerTestMethod5616()
+        {
+            var paths = FindPaths(2126125555, 2060367530, true);
+            Assert.IsTrue(paths.Count >= 5616);
+        }
+
+        /// <summary>
         /// BOP 5-5 放出的样例1。
         /// </summary>
         [TestMethod]

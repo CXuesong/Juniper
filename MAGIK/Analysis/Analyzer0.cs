@@ -412,9 +412,15 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             {
                 // 带有 作者/会议/期刊 等属性限制，搜索引用中含有 paper2 的论文 Id。
                 // attributeConstraint 可以长一些。
-                Func<string, int, Task> ExploreToPaper2WithAttributes =
-                    async (attributeConstraint, maxPapers) =>
+                Func<string, Task> ExploreToPaper2WithAttributes =
+                    async attributeConstraint =>
                     {
+                        // 一般来说， Paper2 肯定就是题目中的终结点，
+                        // 因此我们是知道其具体信息的。
+                        Debug.Assert(!paper2.IsStub);
+                        var maxPapers = paper2.IsStub
+                            ? Assumptions.PaperMaxCitations
+                            : paper2.CitationCount;
                         var er = await asClient.EvaluateAsync(SEB.And(
                             attributeConstraint,
                             SEB.ReferenceIdContains(paper2.Id)),
@@ -438,29 +444,28 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                     await Task.WhenAll(authors1
                         .Select(n => n.Id)
                         .Partition(SEB.MaxChainedAuIdCount)
-                        .Select(id1s => ExploreToPaper2WithAttributes(SEB.AuthorIdIn(id1s),
-                            Assumptions.AuthorMaxPapers*SEB.MaxChainedAuIdCount)));
+                        .Select(id1s => ExploreToPaper2WithAttributes(SEB.AuthorIdIn(id1s))));
                 }
                 else if (node1 is FieldOfStudyNode)
                 {
                     // F.FId <-> Id -> Id
                     await
-                        ExploreToPaper2WithAttributes(SEB.FieldOfStudyIdEquals(node1.Id), Assumptions.PaperMaxCitations);
+                        ExploreToPaper2WithAttributes(SEB.FieldOfStudyIdEquals(node1.Id));
                 }
                 else if (node1 is ConferenceNode)
                 {
                     // F.FId <-> Id -> Id
-                    await ExploreToPaper2WithAttributes(SEB.ConferenceIdEquals(node1.Id), Assumptions.PaperMaxCitations);
+                    await ExploreToPaper2WithAttributes(SEB.ConferenceIdEquals(node1.Id));
                 }
                 else if (node1 is JournalNode)
                 {
                     // F.FId <-> Id -> Id
-                    await ExploreToPaper2WithAttributes(SEB.JournalIdEquals(node1.Id), Assumptions.PaperMaxCitations);
+                    await ExploreToPaper2WithAttributes(SEB.JournalIdEquals(node1.Id));
                 }
                 else if (node1 is AffiliationNode)
                 {
                     // AA.AfId <-> AA.AuId <-> Id
-                    await ExploreToPaper2WithAttributes(SEB.JournalIdEquals(node1.Id), Assumptions.PaperMaxCitations);
+                    await ExploreToPaper2WithAttributes(SEB.JournalIdEquals(node1.Id));
                 }
             }
             else if (node2 is AuthorNode)

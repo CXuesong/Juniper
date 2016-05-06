@@ -33,6 +33,9 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic.Contract
         [JsonProperty("C")]
         public Conference Conference { get; set; }
 
+        /// <summary>
+        /// 文献被引用的次数。
+        /// </summary>
         [JsonProperty("CC")]
         public int CitationCount { get; set; }
 
