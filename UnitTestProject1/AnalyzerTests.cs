@@ -124,6 +124,16 @@ namespace UnitTestProject1
         }
 
         /// <summary>
+        /// Elecky 的测试样例。
+        /// </summary>
+        [TestMethod]
+        public void AnalyzerTestMethod2595()
+        {
+            var paths = FindPaths(2126125555, 2153635508, true);
+            Assert.IsTrue(paths.Count >= 2595);
+        }
+
+        /// <summary>
         /// BOP 5-5 放出的样例1。
         /// </summary>
         [TestMethod]

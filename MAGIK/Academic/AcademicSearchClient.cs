@@ -106,10 +106,8 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
         #endregion
 
         #region 统计信息
-#if TRACE
         private long queryCounter = 0;
         private long queryTimeMs = 0;
-#endif
         #endregion
 
         /// <summary>

@@ -15,6 +15,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikServer.Controllers
     /// <summary>
     /// 为 MAGIK 服务提供控制器逻辑。
     /// </summary>
+    [JsonExceptionsFilter]
     public class MagikController : ApiController
     {
         /// <summary>
@@ -22,7 +23,6 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikServer.Controllers
         /// </summary>
         [Route("magik/v1/paths")]
         [JsonArgumentExceptionFilter]
-        [JsonExceptionsFilter]
         public Task<IHttpActionResult> Get(string expr)
         {
             long[] idPair;
