@@ -22,9 +22,19 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikServer
         /// </summary>
         public static int ASClientPagingSize { get; }
 
+        /// <summary>
+        /// 是否允许在请求之间缓存网络图。
+        /// </summary>
+        public static bool AnalyzerCacheAllowed { get; }
+
         private static int ToInt32(this string expression)
         {
             return Convert.ToInt32(expression);
+        }
+
+        private static bool ToBoolean(this string expression)
+        {
+            return Convert.ToBoolean(expression);
         }
 
         static Configurations()
@@ -34,6 +44,8 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikServer
                             ?? new[] {"http://localhost:9000/"};
             ASClientPagingSize = config["ASClient.PagingSize"]?.ToInt32()
                                  ?? 1000;
+            AnalyzerCacheAllowed = config["Analyzer.CacheAllowed"]?.ToBoolean()
+                                   ?? false;
         }
     }
 }

@@ -47,7 +47,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         /// 此函数不予考虑。这一类查询需要根据上下文进一步限定条件。
         /// </summary>
         /// <param name="asClient"></param>
-        /// <seealso cref="Analyzer.ExploreInterceptionNodesAsync"/>
+        /// <seealso cref="Analyzer.ExploreInterceptionNodesInternalAsync"/>
         public abstract Task<ICollection<KgNode>> GetAdjacentNodesAsync(AcademicSearchClient asClient);
 
         /// <summary>

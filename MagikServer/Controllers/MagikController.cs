@@ -53,9 +53,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikServer.Controllers
         [JsonExceptionsFilter]
         public async Task<IHttpActionResult> Get(long id1, long id2)
         {
-            var asClient = GlobalServices.CreateASClient();
-            asClient.PagingSize = Configurations.ASClientPagingSize;
-            var analyzer = new Analyzer(asClient);
+            var analyzer = Utility.GetAnalyzer();
             try
             {
                 var paths = await analyzer.FindPathsAsync(id1, id2);
@@ -83,7 +81,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikServer.Controllers
             finally
             {
                 analyzer.LogStatistics();
-                asClient.LogStatistics();
+                analyzer.SearchClient.LogStatistics();
             }
         }
     }

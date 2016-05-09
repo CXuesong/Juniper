@@ -1,4 +1,6 @@
-﻿using System;
+﻿#define ALLOW_CACHE
+
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -80,11 +82,17 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikConsole
             throw new NotImplementedException();
         }
 
+        private static readonly AcademicSearchClient client = GlobalServices.CreateASClient();
+
+#if ALLOW_CACHE
+        private static readonly Analyzer analyzer = new Analyzer(client);
+#endif
+
         private static async Task FindPathsAsync(long id1, long id2)
         {
-            // 消除本地缓存对性能的影响。
-            var client = GlobalServices.CreateASClient();
+#if !ALLOW_CACHE
             var analyzer = new Analyzer(client);
+#endif
             Console.WriteLine("请稍后……");
             var sw = Stopwatch.StartNew();
             var paths = await analyzer.FindPathsAsync(id1, id2);

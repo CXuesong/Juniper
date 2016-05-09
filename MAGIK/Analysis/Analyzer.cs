@@ -12,7 +12,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Contests.Bop.Participants.Magik.Academic;
 using Microsoft.Contests.Bop.Participants.Magik.Academic.Contract;
-using SEB = Microsoft.Contests.Bop.Participants.Magik.Academic.SearchExpressionBuilder;
 
 namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
 {
@@ -31,12 +30,13 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         // 因此，使用 status 映射处理这些可变状态。
         private readonly ConcurrentDictionary<long, NodeStatus> status = new ConcurrentDictionary<long, NodeStatus>();
 
-        private readonly AcademicSearchClient asClient;
+        public AcademicSearchClient SearchClient { get; }
+
 
         public Analyzer(AcademicSearchClient asClient)
         {
             if (asClient == null) throw new ArgumentNullException(nameof(asClient));
-            this.asClient = asClient;
+            this.SearchClient = asClient;
         }
 
         /// <summary>
@@ -50,6 +50,9 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         /// 合法的节点类型包括
         /// 论文（Id）, 研究领域（F.Fid）, 期刊（J.JId）, 会议（C.CId）, 作者（AA.AuId）, 组织（AA.AfId）。
         /// </returns>
+        /// <remarks>
+        /// 此函数应该是线程安全的……吧？
+        /// </remarks>
         public async Task<KgNode[][]> FindPathsAsync(long id1, long id2)
         {
             Logger.Magik.Enter(this, $"{id1} -> {id2}");
@@ -127,20 +130,23 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             /// <summary>
             /// 节点的基础本地信息的探索情况。
             /// </summary>
-            public static readonly object LocalExploration = new NamedObject("LocalExploration");
+            public static readonly ExplorationDomainKey LocalExploration =
+                new TokenExplorationDomainKey("LocalExploration");
+
             /// <summary>
             /// 作者所写的所有论文的探索情况。
             /// </summary>
-            public static readonly object AuthorPapersExploration = new NamedObject("AuthorPapersExploration");
+            public static readonly ExplorationDomainKey AuthorPapersExploration =
+                new TokenExplorationDomainKey("AuthorPapersExploration");
 
             // 一个节点被探索，当且仅当在向服务器提交查询，并能够获得此节点的完全信息之后。
             // 在 DEBUG 模式下，完全信息包括节点的名称和此节点的邻节点（保存在 Graph 中，
             //      但很可能不在 exploredNodes 中，因为这些邻节点还没有被探索）。
             // 在 RELEASE 模式下，完全信息仅包括节点的邻节点。
-            private Dictionary<object, ExplorationStatus> explorationStatusDict 
-                = new Dictionary<object, ExplorationStatus>();
-            private Dictionary<object, TaskCompletionSource<bool>> explorationTaskCompletionSourceDict
-                = new Dictionary<object, TaskCompletionSource<bool>>();
+            private Dictionary<ExplorationDomainKey, ExplorationStatus> explorationStatusDict 
+                = new Dictionary<ExplorationDomainKey, ExplorationStatus>();
+            private Dictionary<ExplorationDomainKey, TaskCompletionSource<bool>> explorationTaskCompletionSourceDict
+                = new Dictionary<ExplorationDomainKey, TaskCompletionSource<bool>>();
             private ReaderWriterLockSlim syncLock = new ReaderWriterLockSlim();
 #if DEBUG
             private readonly long _NodeId;
@@ -164,7 +170,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             /// 如果成功将节点置于 <see cref="ExplorationStatus.Exploring" /> 状态，
             /// 则返回 true 。指示当前线程应当开始探索对应的节点。
             /// </returns>
-            public bool TryMarkAsExploring(object domainKey)
+            public bool TryMarkAsExploring(ExplorationDomainKey domainKey)
             {
                 if (domainKey == null) throw new ArgumentNullException(nameof(domainKey));
                 syncLock.EnterWriteLock();
@@ -197,7 +203,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             /// 则任务会返回 true 。指示当前线程应当开始探索对应的节点。否则，如果当前节点
             /// 已经被探索，或正在探索，则任务会在探索结束后返回 false 。
             /// </returns>
-            public Task<bool> MarkAsExploringOrUntilExplored(object domainKey)
+            public Task<bool> MarkAsExploringOrUntilExplored(ExplorationDomainKey domainKey)
             {
                 if (domainKey == null) throw new ArgumentNullException(nameof(domainKey));
                 syncLock.EnterWriteLock();
@@ -234,7 +240,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             /// <returns>
             /// 任务会在（其他线程）探索结束后返回。
             /// </returns>
-            public Task UntilExploredAsync(object domainKey)
+            public Task UntilExploredAsync(ExplorationDomainKey domainKey)
             {
                 if (domainKey == null) throw new ArgumentNullException(nameof(domainKey));
                 syncLock.EnterWriteLock();
@@ -262,7 +268,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             /// 如果当前节点处于 <see cref="ExplorationStatus.Exploring"/> 状态，
             /// 则尝试将节点置于 <see cref="ExplorationStatus.Explored" /> 状态。
             /// </summary>
-            public void MarkAsExplored(object domainKey)
+            public void MarkAsExplored(ExplorationDomainKey domainKey)
             {
                 if (domainKey == null) throw new ArgumentNullException(nameof(domainKey));
                 syncLock.EnterWriteLock();
@@ -286,7 +292,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                 }
             }
 
-            public ExplorationStatus GetExplorationStatus(object domainKey)
+            public ExplorationStatus GetExplorationStatus(ExplorationDomainKey domainKey)
             {
                 if (domainKey == null) throw new ArgumentNullException(nameof(domainKey));
                 syncLock.EnterReadLock();
@@ -315,6 +321,112 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             ~NodeStatus()
             {
                 syncLock?.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// 用于在 <see cref="NodeStatus"/> 中标注当前节点已经探索过的内容。
+        /// 这是一个键类型，因而应当是不可变的。
+        /// </summary>
+        private class ExplorationDomainKey : IEquatable<ExplorationDomainKey>
+        {
+            /// <summary>
+            /// 指示当前对象是否等于同一类型的另一个对象。
+            /// </summary>
+            /// <returns>
+            /// 如果当前对象等于 <paramref name="other"/> 参数，则为 true；否则为 false。
+            /// </returns>
+            /// <param name="other">与此对象进行比较的对象。</param>
+            public bool Equals(ExplorationDomainKey other)
+            {
+                if (this == other) return true;
+                if (other == null) return false;
+                if (GetType() != other.GetType()) return false;
+                return EqualsCore(other);
+            }
+
+            /// <summary>
+            /// 作为默认哈希函数。
+            /// </summary>
+            /// <returns>
+            /// 当前对象的哈希代码。
+            /// </returns>
+            public sealed override int GetHashCode()
+            {
+                return GetType().GetHashCode() ^ GetHashCodeCore();
+            }
+
+            /// <summary>
+            /// 在派生类中重写时，判断当前对象和另一对象是否相等。
+            /// </summary>
+            /// <remarks>
+            /// 调用方已经保证 <paramref name="other"/> 与当前对象类型相同。
+            /// </remarks>
+            protected virtual bool EqualsCore(ExplorationDomainKey other)
+            {
+                Debug.Assert(GetType() == other.GetType());
+                return true;
+            }
+
+            protected virtual int GetHashCodeCore()
+            {
+                return 0;
+            }
+        }
+
+        /// <summary>
+        /// 使用一个名称来区分探索领域。适用于”局部探索“、
+        /// ”作者所有论文探索“的标注。
+        /// </summary>
+        private class TokenExplorationDomainKey : ExplorationDomainKey
+        {
+            /// <summary>
+            /// 探索领域的名称。
+            /// </summary>
+            public string Name { get; }
+
+            public TokenExplorationDomainKey(string name)
+            {
+                if (name == null) throw new ArgumentNullException(nameof(name));
+                Name = name;
+            }
+
+            protected override bool EqualsCore(ExplorationDomainKey other)
+            {
+                return base.EqualsCore(other) && Name == ((TokenExplorationDomainKey) other).Name;
+            }
+
+            protected override int GetHashCodeCore()
+            {
+                return Name.GetHashCode();
+            }
+        }
+
+        /// <summary>
+        /// 表示此节点和另一个节点之间的所有中间节点的探索情况。
+        /// 尤其是指使用 <see cref="ExploreInterceptionNodesInternalAsync"/> 进行探索的情况。
+        /// </summary>
+        private class InterceptionExplorationDomainKey : ExplorationDomainKey
+        {
+            /// <summary>
+            /// 被探索的另一个节点的 Id 。
+            /// </summary>
+            public long AnotherNodeId { get; }
+
+            public InterceptionExplorationDomainKey(long anotherNodeId)
+            {
+                AnotherNodeId = anotherNodeId;
+            }
+
+            protected override bool EqualsCore(ExplorationDomainKey other)
+            {
+                return base.EqualsCore(other) &&
+                       AnotherNodeId == ((InterceptionExplorationDomainKey) other).AnotherNodeId;
+            }
+
+            protected override int GetHashCodeCore()
+            {
+                return AnotherNodeId.GetHashCode();
             }
         }
     }

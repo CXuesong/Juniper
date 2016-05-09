@@ -1,4 +1,6 @@
-﻿using System;
+﻿#define CACHE_TEST_ENABLED
+
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -41,6 +43,13 @@ namespace UnitTestProject1
                 Assert.AreEqual(id1, p[0].Id);
                 Assert.AreEqual(id2, p[p.Length - 1].Id);
             }
+#if CACHE_TEST_ENABLED
+            var paths2 = TestUtility.AwaitSync(a.FindPathsAsync(id1, id2));
+            Assert.IsTrue(paths.Length == paths2.Length);
+            Assert.IsTrue(paths.SequenceEqual(paths2, ArrayEqualityComparer<KgNode>.Default));
+            Trace.WriteLine(a.DumpStatistics());
+            Trace.WriteLine(asc.DumpStatistics());
+#endif
             return paths;
         }
 
