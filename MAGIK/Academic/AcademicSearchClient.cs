@@ -281,5 +281,13 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
             var message = $"{queryCounter}次查询。平均{queryTimeMs/queryCounter}ms/次。";
             return message;
         }
+
+        /// <summary>
+        /// 向日志输出调用统计信息。
+        /// </summary>
+        public void LogStatistics()
+        {
+            Logger.AcademicSearch.Info(this, DumpStatistics());
+        }
     }
 }

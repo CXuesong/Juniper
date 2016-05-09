@@ -20,8 +20,8 @@ namespace UnitTestProject1
             var asc = GlobalServices.CreateASClient();
             var a = new Analyzer(asc);
             var paths = TestUtility.AwaitSync(a.FindPathsAsync(id1, id2));
-            Trace.WriteLine(asc.DumpStatistics());
             Trace.WriteLine(a.DumpStatistics());
+            Trace.WriteLine(asc.DumpStatistics());
             //a.TraceGraph();
             var hop1Count = paths.Count(p => p.Length == 2);
             var hop2Count = paths.Count(p => p.Length == 3);

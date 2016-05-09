@@ -76,10 +76,6 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                 .ToArray();
             Logger.Magik.Success(this, "在 {0} - {1} 之间找到了 {2} 条路径。用时： {3} 。", node1, node2, result.Length, sw.Elapsed);
             Logger.Magik.Exit(this);
-            //var xxx = await FindHop3PathsAsync(node1, node2);
-            //var x = graph.Contains(1982462162, 2139873966);
-            //var x1 = graph.Contains(2139873966, 2122841972);
-            //var x2 = graph.Contains(2122841972, 676500258);
             return result;
         }
 
@@ -91,15 +87,12 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             return $"缓存图：{graph.VerticesCount}个节点，{graph.EdgesCount}条边。";
         }
 
-
         /// <summary>
         /// 向日志输出调用统计信息。
         /// </summary>
         public void LogStatistics()
         {
             Logger.Magik.Info(this, DumpStatistics());
-            Logger.Magik.Info(asClient, asClient.DumpStatistics());
-            Logger.Magik.Info(this, "缓存图： {0} 个节点， {1} 条边。", graph.VerticesCount, graph.EdgesCount);
         }
 
         /// <summary>

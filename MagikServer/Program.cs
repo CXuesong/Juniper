@@ -28,8 +28,11 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikServer
                 Console.WriteLine(response);
                 Console.WriteLine(response.Content.ReadAsStringAsync().Result);
                 */
-                Console.WriteLine("请按回车键以结束服务。");
-                Console.ReadLine();
+                WAITFORKEY:
+                Console.WriteLine("请按任意键以结束服务。");
+                Console.ReadKey(true);
+                Console.WriteLine("请键入 EXIT 并回车以结束服务。");
+                if (Console.ReadLine() != "EXIT") goto WAITFORKEY;
             }
         }
 

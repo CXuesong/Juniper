@@ -54,6 +54,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikServer.Controllers
         public async Task<IHttpActionResult> Get(long id1, long id2)
         {
             var asClient = GlobalServices.CreateASClient();
+            asClient.PagingSize = Configurations.ASClientPagingSize;
             var analyzer = new Analyzer(asClient);
             try
             {
@@ -82,6 +83,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikServer.Controllers
             finally
             {
                 analyzer.LogStatistics();
+                asClient.LogStatistics();
             }
         }
     }
