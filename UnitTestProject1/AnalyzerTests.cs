@@ -44,7 +44,10 @@ namespace UnitTestProject1
                 Assert.AreEqual(id2, p[p.Length - 1].Id);
             }
 #if CACHE_TEST_ENABLED
+            var sw = Stopwatch.StartNew();
             var paths2 = TestUtility.AwaitSync(a.FindPathsAsync(id1, id2));
+            sw.Stop();
+            Trace.WriteLine("Cached: " + sw.Elapsed);
             Assert.IsTrue(paths.Length == paths2.Length);
             Assert.IsTrue(paths.SequenceEqual(paths2, ArrayEqualityComparer<KgNode>.Default));
             Trace.WriteLine(a.DumpStatistics());
@@ -108,7 +111,7 @@ namespace UnitTestProject1
             // 1982462162: Jaime Teevan
             // 676500258: Susan T Dumais
             var paths = FindPaths(1982462162, 676500258, true);
-            AssertPathsCount(paths, 39 + 50);
+            AssertPathsCount(paths, 39 + 108);
             // 2057034832: Understanding Temporal Query Dynamics
             AssertPathExists(paths, 1982462162, 2057034832, 676500258);
             // 1290206253: Microsoft
@@ -170,7 +173,43 @@ namespace UnitTestProject1
         public void AnalyzerTestMethod83()
         {
             var paths = FindPaths(2175015405, 2121939561, true);
-            AssertPathsCount(paths, 51);
+            AssertPathsCount(paths, 83);
+        }
+
+
+        /// <summary>
+        /// 钟泽轩 的测试样例。
+        /// </summary>
+        [TestMethod]
+        public void AnalyzerTestMethod448()
+        {
+            var paths = FindPaths(2145115012, 2125800575, true);
+            AssertPathsCount(paths, 448);
+        }
+
+        /// <summary>
+        /// 陈楷予 的测试样例。
+        /// 反向的 BOP 样例2。
+        /// </summary>
+        [TestMethod]
+        public void AnalyzerTestMethod2470()
+        {
+            var paths = FindPaths(189831743, 2147152072, true);
+            AssertPathsCount(paths, 2470);
+        }
+
+        /// <summary>
+        /// Welthy 的测试样例。
+        /// </summary>
+        [TestMethod]
+        public void AnalyzerTestMethod38()
+        {
+            var paths = FindPaths(621499171, 2100837269, true);
+            AssertPathExists(paths, 621499171, 2034796909, 1968806977, 2100837269);
+            AssertPathExists(paths, 621499171, 2034796909, 1970107317, 2100837269);
+            // 注意这是一个环。
+            AssertPathExists(paths, 621499171, 1315039220, 621499171, 2100837269);
+            AssertPathsCount(paths, 38);
         }
 
         /// <summary>

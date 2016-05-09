@@ -71,9 +71,6 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             var hops = await Task.WhenAll(
                 FindHop12PathsAsync(node1, node2),
                 FindHop3PathsAsync(node1, node2));
-            // Possible multiple enumeration of IEnumerable
-            // I don't care
-            // 因为 FindHop12PathsAsync 和 FindHop3PathsAsync 返回的其实都是 List 。
             var result = hops.SelectMany(hop => hop)
                 .Distinct(new ArrayEqualityComparer<KgNode>(KgNodeEqualityComparer.Default))
                 .ToArray();

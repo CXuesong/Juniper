@@ -11,12 +11,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
 {
     partial class Analyzer
     {
-        /// <summary>
-        /// 如果一篇文章的被引用次数超过此值，则认为文章被引用次数太多，需要调整搜索策略。
-        /// </summary>
-        public const int PAPER_BACKREFERENCE_THRESHOLD = 10000;
-
-        private async Task<IEnumerable<KgNode[]>> FindHop12PathsAsync(KgNode node1, KgNode node2)
+        private async Task<IReadOnlyCollection<KgNode[]>> FindHop12PathsAsync(KgNode node1, KgNode node2)
         {
             Debug.Assert(node1 != null);
             Debug.Assert(node2 != null);

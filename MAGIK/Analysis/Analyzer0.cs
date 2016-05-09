@@ -92,7 +92,8 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         }
 
         /// <summary>
-        /// 同时探索多个节点。适用于文章节点。
+        /// 同时探索多个节点。适用于文章节点。注意，此函数仅在查询方面进行了优化，
+        /// 其操作与多次调用 <see cref="LocalExploreAsync(KgNode)"/> 是等价的。
         /// 如果其他线程正在探索此节点，则等待此节点探索完毕。
         /// </summary>
         private async Task LocalExploreAsync(IReadOnlyCollection<PaperNode> paperNodes)

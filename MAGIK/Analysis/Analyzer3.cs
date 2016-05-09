@@ -11,7 +11,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
 {
     partial class Analyzer
     {
-        private async Task<IEnumerable<KgNode[]>> FindHop3PathsAsync(KgNode node1, KgNode node2)
+        private async Task<IReadOnlyCollection<KgNode[]>> FindHop3PathsAsync(KgNode node1, KgNode node2)
         {
             Debug.Assert(node1 != null);
             Debug.Assert(node2 != null);
@@ -19,25 +19,22 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             // Notation
             // Node1 -- Node3 -- Node4 -- Node2
             var paths = new List<KgNode[]>();
-            var paper1 = node1 as PaperNode;
             var author1 = node1 as AuthorNode;
-            // 探索 node1
+            // 手动探索 node1 之后的所有节点。
             await LocalExploreAsync(node1);
-            if (paper1 != null)
-            {
-                // 手动探索 node1 之后的所有节点。
-                var nodes3 = graph.AdjacentOutVertices(node1.Id)
-                    .Select(id => nodes[id])
-                    .ToArray();
-                await ExploreInterceptionNodesAsync(nodes3, node2);
-            }
-            else
-            {
-                // 在 FindPathsAsync 中应该已经可以保证 node1 是论文或作者 。
-                Debug.Assert(author1 != null);
+            if (author1 != null)
+            { 
+                // Author 还需要补刀。
                 await ExploreAuthorsPapersAsync(new[] {author1});
             }
-            // 从 Id1 出发，探索所有可能的 Id3 。
+            // 获取 Node1 出发所有可能的 Node3
+            var nodes3 = graph.AdjacentOutVertices(node1.Id)
+                .Select(id => nodes[id])
+                .ToArray();
+            // 探索 Node4
+            await ExploreInterceptionNodesAsync(nodes3, node2);
+            // 计算路径。
+            // 从 Id1 出发，寻找所有可能的 Id3 。
             var id4PredecessorsDict = new Dictionary<long, List<long>>();
             foreach (var id3 in graph.AdjacentOutVertices(node1.Id))
             {

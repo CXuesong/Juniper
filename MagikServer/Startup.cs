@@ -2,8 +2,10 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Web.Http;
+using System.Web.Http.ExceptionHandling;
 using Microsoft.Owin;
 using Microsoft.Owin.Builder;
 using Microsoft.Owin.Extensions;
@@ -45,6 +47,10 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikServer
             appBuilder.Use(RequestLoggingMiddleware);
             {
                 var config = new HttpConfiguration();
+                
+                
+                config.Services.Add(typeof(IExceptionLogger), new MyExceptionLogger(requestLogger));
+                config.Services.Replace(typeof(IExceptionHandler), new MyExceptionHandler());
                 config.MapHttpAttributeRoutes();
                 config.Routes.IgnoreRoute("StaticFiles", StaticFilesVirtualRoot + "/{*pathInfo}");
                 config.Routes.MapHttpRoute("Home", "", new {controller = "Home"});
@@ -55,6 +61,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikServer
                     );
                 appBuilder.UseWebApi(config);
             }
+            
             /*
             {
                 var options = new FileServerOptions
@@ -78,6 +85,51 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikServer
             await next();
             var response = context.Response;
             requestLogger.WriteVerbose($"{request.RemoteIpAddress} {request.Method}: {request.Uri} -> {response.StatusCode} {response.ContentType} {response.ContentLength}");
+        }
+    }
+
+    internal class MyExceptionLogger : ExceptionLogger
+    {
+        public MyExceptionLogger(ILogger logger)
+        {
+            if (logger == null) throw new ArgumentNullException(nameof(logger));
+            Logger = logger;
+        }
+
+        public ILogger Logger { get; }
+
+        /// <summary>
+        /// When overridden in a derived class, logs the exception synchronously.
+        /// </summary>
+        /// <param name="context">The exception logger context.</param>
+        public override void Log(ExceptionLoggerContext context)
+        {
+            base.Log(context);
+            Logger.WriteError(context.CatchBlock.Name, context.Exception);
+        }
+    }
+
+    internal class MyExceptionHandler : ExceptionHandler
+    {
+        /// <summary>
+        /// When overridden in a derived class, handles the exception synchronously.
+        /// </summary>
+        /// <param name="context">The exception handler context.</param>
+        public override void Handle(ExceptionHandlerContext context)
+        {
+            base.Handle(context);
+        }
+
+        /// <summary>
+        /// Determines whether the exception should be handled.
+        /// </summary>
+        /// <returns>
+        /// true if the exception should be handled; otherwise, false.
+        /// </returns>
+        /// <param name="context">The exception handler context.</param>
+        public override bool ShouldHandle(ExceptionHandlerContext context)
+        {
+            return base.ShouldHandle(context);
         }
     }
 }
