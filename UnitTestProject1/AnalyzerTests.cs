@@ -23,7 +23,10 @@ namespace UnitTestProject1
             Trace.WriteLine(asc.DumpStatistics());
             Trace.WriteLine(a.DumpStatistics());
             //a.TraceGraph();
-            Trace.WriteLine($"路径 {id1} -> {id2} [{paths.Length}]");
+            var hop1Count = paths.Count(p => p.Length == 2);
+            var hop2Count = paths.Count(p => p.Length == 3);
+            var hop3Count = paths.Count(p => p.Length == 4);
+            Trace.WriteLine($"路径 {id1} -> {id2} [{hop1Count} + {hop2Count} + {hop3Count} = {paths.Length}]");
             Trace.Indent();
             foreach (var p in paths)
             {
@@ -39,6 +42,14 @@ namespace UnitTestProject1
                 Assert.AreEqual(id2, p[p.Length - 1].Id);
             }
             return paths;
+        }
+
+        private void AssertPathsCount(ICollection<KgNode[]> paths, int countAtLeast)
+        {
+            if (paths.Count < countAtLeast)
+                Assert.Fail("路径数量不足。期望：{0}，实际：{1}。", countAtLeast, paths.Count);
+            else if (paths.Count > countAtLeast)
+                Assert.Inconclusive("路径数量超过期望值。期望：{0}，实际：{1}。", countAtLeast, paths.Count);
         }
 
         private void AssertPathExists(ICollection<KgNode[]> paths, params long[] idPath)
@@ -57,7 +68,7 @@ namespace UnitTestProject1
             // 1982462162: Jaime Teevan
             var paths = FindPaths(2157025439, 1982462162, true);
             // 1/2 hop + 3-hop
-            Assert.IsTrue(paths.Count >= 2 + 258);
+            AssertPathsCount(paths, 2 + 258);
             AssertPathExists(paths, 2157025439, 1982462162);
         }
 
@@ -71,7 +82,7 @@ namespace UnitTestProject1
             // 2061503185: implicit feedback for inferring user preference a bibliography
             var paths = FindPaths(2157025439, 2061503185, true);
             // 1/2 hop + 3-hop
-            Assert.IsTrue(paths.Count >= 3 + 239);
+            AssertPathsCount(paths, 3 + 241);
             AssertPathExists(paths, 2157025439, 2122841972, 2061503185);
             // 1982462162: Jaime Teevan
             AssertPathExists(paths, 2157025439, 1982462162, 2061503185);
@@ -88,7 +99,7 @@ namespace UnitTestProject1
             // 1982462162: Jaime Teevan
             // 676500258: Susan T Dumais
             var paths = FindPaths(1982462162, 676500258, true);
-            Assert.IsTrue(paths.Count >= 39 + 50);
+            AssertPathsCount(paths, 39 + 50);
             // 2057034832: Understanding Temporal Query Dynamics
             AssertPathExists(paths, 1982462162, 2057034832, 676500258);
             // 1290206253: Microsoft
@@ -104,7 +115,7 @@ namespace UnitTestProject1
             // 2128366083: resolution limit in community detection
             // 2112090702: collective dynamics of small world network
             var paths = FindPaths(2128366083, 2112090702, true);
-            Assert.IsTrue(paths.Count >= 4 + 1524);
+            AssertPathsCount(paths, 4 + 1524);
             // 2164928285: uncovering the overlapping community structure of complex networks in nature and society
             AssertPathExists(paths, 2128366083, 2164928285, 2112090702);
             // Other papers
@@ -120,7 +131,7 @@ namespace UnitTestProject1
         public void AnalyzerTestMethod190()
         {
             var paths = FindPaths(1502768748, 2122841972, true);
-            Assert.IsTrue(paths.Count >= 190);
+            AssertPathsCount(paths, 190);
         }
 
         /// <summary>
@@ -130,19 +141,27 @@ namespace UnitTestProject1
         public void AnalyzerTestMethod2595()
         {
             var paths = FindPaths(2126125555, 2153635508, true);
-            Assert.IsTrue(paths.Count >= 2595);
+            AssertPathsCount(paths, 2595);
         }
 
         /// <summary>
         /// Benzhong 的测试样例。
-        /// Elecky 表示有 5598 条。
-        /// 但我觉得有 5616 条。
         /// </summary>
         [TestMethod]
         public void AnalyzerTestMethod5616()
         {
             var paths = FindPaths(2126125555, 2060367530, true);
-            Assert.IsTrue(paths.Count >= 5616);
+            AssertPathsCount(paths, 5616);
+        }
+
+        /// <summary>
+        /// Welthy 的测试样例。
+        /// </summary>
+        [TestMethod]
+        public void AnalyzerTestMethod83()
+        {
+            var paths = FindPaths(2175015405, 2121939561, true);
+            AssertPathsCount(paths, 51);
         }
 
         /// <summary>
@@ -166,7 +185,7 @@ namespace UnitTestProject1
         }
 
         /// <summary>
-        /// BOP 5-5 放出的样例2。
+        /// BOP 5-5 放出的样例3。
         /// </summary>
         [TestMethod]
         public void AnalyzerTestBop3()

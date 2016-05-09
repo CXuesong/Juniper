@@ -23,7 +23,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         private NodeStatus GetStatus(long id)
         {
             Debug.Assert(graph.Vertices.Contains(id));
-            return status.GetOrAdd(id, i => new NodeStatus());
+            return status.GetOrAdd(id, i => new NodeStatus(id));
         }
 
         /// <summary>
@@ -93,111 +93,66 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
 
         /// <summary>
         /// 同时探索多个节点。适用于文章节点。
+        /// 如果其他线程正在探索此节点，则等待此节点探索完毕。
         /// </summary>
-        private async Task LocalExploreAsync(IEnumerable<PaperNode> paperNodes)
+        private async Task LocalExploreAsync(ICollection<PaperNode> paperNodes)
         {
             Debug.Assert(paperNodes != null);
             var newlyDiscoveredNodes = 0;
-            try
-            {
-                var nodesToExplore = paperNodes
-                    .Where(n => GetStatus(n.Id).TryMarkAsExploring(NodeStatus.LocalExploration))
-                    .ToArray();
-                if (nodesToExplore.Length == 0) return;
-                // 区分“已经下载详细信息”的实体和“需要下载详细信息”的实体。
-                var nodesToFetch = nodesToExplore.Where(n => n.IsStub);
-                var nodesFetched = nodesToExplore.Where(n => !n.IsStub);
-                var fetchTasks = nodesToFetch.Select(n => n.Id)
-                    .Partition(SEB.MaxChainedIdCount)
-                    .Select(async ids =>
-                    {
-                        // 假定 Partition 返回的是 IList / ICollection
-                        var idc = (ICollection<long>) ids;
-                        var er = await asClient.EvaluateAsync(
-                            SEB.EntityIdIn(idc),
-                            SEB.MaxChainedIdCount);
-                        if (er.Entities.Count < idc.Count)
-                            Logger.Magik.Warn(this, "批量查询实体 Id 时，返回结果数量不足。期望：{0}，实际：{1}。", idc.Count, er.Entities.Count);
-                        return er.Entities.Select(et => new PaperNode(et));
-                    }).ToArray();   // 先让网络通信启动起来。
-                // 随后，先把 paperNodes 注册一遍。
-                newlyDiscoveredNodes += nodesToExplore.Count(RegisterNode);
-                // 定义探索过程。
-                Func<PaperNode, Task> explore = async paperNode =>
+            // 注意，有些节点可能仍处于 正在探索 的状态。
+            // 需要在返回前等待这些正在探索的节点。
+            var nodesToExplore = paperNodes
+                .Where(n => GetStatus(n.Id).TryMarkAsExploring(NodeStatus.LocalExploration))
+                .ToArray();
+            if (nodesToExplore.Length == 0) goto WAIT_FOR_EXPLORATIONS;
+            // 区分“已经下载详细信息”的实体和“需要下载详细信息”的实体。
+            var nodesToFetch = nodesToExplore.Where(n => n.IsStub);
+            var nodesFetched = nodesToExplore.Where(n => !n.IsStub);
+            var fetchTasks = nodesToFetch.Select(n => n.Id)
+                .Partition(SEB.MaxChainedIdCount)
+                .Select(async ids =>
                 {
-                    var adj = await paperNode.GetAdjacentNodesAsync(asClient);
-                    // an: Adjacent Node
-                    foreach (var an in adj)
-                    {
-                        if (RegisterNode(an)) newlyDiscoveredNodes++;
-                        RegisterEdge(paperNode.Id, an.Id, !(an is PaperNode));
-                    }
-                    // 标记为“已经探索过”。
-                    GetStatus(paperNode.Id).MarkAsExplored(NodeStatus.LocalExploration);
-                };
-                //然后处理这些已经在本地的节点。
-                await Task.WhenAll(nodesFetched.Select(explore));
-                //最后处理刚刚下载下来的节点。
-                await Task.WhenAll((await Task.WhenAll(fetchTasks))
-                    .SelectMany(papers => papers)
-                    .Select(explore));
-            }
-            finally
+                    // 假定 Partition 返回的是 IList / ICollection
+                    var idc = (ICollection<long>) ids;
+                    var er = await asClient.EvaluateAsync(
+                        SEB.EntityIdIn(idc),
+                        SEB.MaxChainedIdCount);
+                    if (er.Entities.Count < idc.Count)
+                        Logger.Magik.Warn(this, "批量查询实体 Id 时，返回结果数量不足。期望：{0}，实际：{1}。", idc.Count, er.Entities.Count);
+                    return er.Entities.Select(et => new PaperNode(et));
+                }).ToArray(); // 先让网络通信启动起来。
+            // 随后，先把 paperNodes 注册一遍。
+            newlyDiscoveredNodes += nodesToExplore.Count(RegisterNode);
+            // 定义探索过程。
+            Func<PaperNode, Task> explore = async paperNode =>
             {
-                //Logger.Magik.Trace(this, EventId.OperationSucceeded,
-                //    "LocalExplore [{0}xPaperNode] -> {1} new nodes.",
-                //    nodesCollection.Count, newlyDiscoveredNodes);
-            }
-        }
-
-        /// <summary>
-        /// 异步探索作者的所有论文，顺便探索他/她在发表这些论文时所位于的机构。
-        /// 如果其他线程正在探索此节点，则等待此节点探索完毕。
-        /// </summary>
-        private async Task ExploreAuthorPapersAsync(AuthorNode author)
-        {
-            // 探索 author 的所有论文。此处的探索还可以顺便确定 author 的所有组织。
-            if (!await GetStatus(author.Id).MarkAsExploringOrUntilExplored(NodeStatus.AuthorPapersExploration))
-                return;
-            var papers = await author.GetPapersAsync(asClient);
-            foreach (var paper in papers)
-            {
-                // AA.AuId1 <-> Id
-                RegisterNode(paper);
-                // 此处还可以注册 paper 的所有作者。
-                // 这样做的好处是，万一 author1 和 author2 同时写了一篇论文。
-                // 在这里就可以发现了。
-                await LocalExploreAsync(paper);
-                // 为作者 AA.AuId1 注册所有可能的机构。
-                // 这里比较麻烦，因为一个作者可以属于多个机构，所以
-                // 不能使用 LocalExploreAsync （会认为已经探索过。）
-                foreach (var pa in paper.Authors)
+                var adj = await paperNode.GetAdjacentNodesAsync(asClient);
+                // an: Adjacent Node
+                foreach (var an in adj)
                 {
-                    // AA.AuId <-> AA.AfId
-                    // 其中必定包括
-                    // AA.AuId1 <-> AA.AfId3
-                    RegisterNode(pa);
-                    if (pa.Affiliation != null)
-                    {
-                        RegisterNode(pa.Affiliation);
-                        RegisterEdge(pa.Id, pa.Affiliation.Id, true);
-                    }
+                    if (RegisterNode(an)) newlyDiscoveredNodes++;
+                    RegisterEdge(paperNode.Id, an.Id, !(an is PaperNode));
                 }
-            }
-            GetStatus(author.Id).MarkAsExplored(NodeStatus.AuthorPapersExploration);
-        }
-
-        private async Task ExploreAuthorsPapersAsync(IEnumerable<AuthorNode> authorNodes)
-        {
-            // TODO 修复 ExploreAuthorsPapersAsync0 中的 bug，并用其取代此处的实现。
-            await Task.WhenAll(authorNodes.Select(ExploreAuthorPapersAsync));
+                // 标记为“已经探索过”。
+                GetStatus(paperNode.Id).MarkAsExplored(NodeStatus.LocalExploration);
+            };
+            //然后处理这些已经在本地的节点。
+            await Task.WhenAll(nodesFetched.Select(explore));
+            //最后处理刚刚下载下来的节点。
+            await Task.WhenAll((await Task.WhenAll(fetchTasks))
+                .SelectMany(papers => papers)
+                .Select(explore));
+            WAIT_FOR_EXPLORATIONS:
+            //确保返回前，所有 Exploring 的节点已经由此线程或其他线程处理完毕。
+            await Task.WhenAll(paperNodes.Select(n =>
+                GetStatus(n.Id).UntilExploredAsync(NodeStatus.LocalExploration)));
         }
 
         /// <summary>
         /// 异步探索作者的所有论文，顺便探索他/她在发表这些论文时所位于的机构。
         /// 如果其他线程正在探索此节点，则等待此节点探索完毕。
         /// </summary>
-        private async Task ExploreAuthorsPapersAsync0(IEnumerable<AuthorNode> authorNodes)
+        private async Task ExploreAuthorsPapersAsync(ICollection<AuthorNode> authorNodes)
         {
             // 有些类似于
             //      Task LocalExploreAsync(IEnumerable<PaperNode> paperNodes);
@@ -205,7 +160,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             var nodesToExplore = authorNodes
                 .Where(n => GetStatus(n.Id).TryMarkAsExploring(NodeStatus.AuthorPapersExploration))
                 .ToArray();
-            if (nodesToExplore.Length == 0) return;
+            if (nodesToExplore.Length == 0) goto WAIT_FOR_EXPLORATIONS;
             var papers = 0;
             // 随后，先把 authorNodes 注册一遍。
             var fetchTasks = nodesToExplore.Select(n => n.Id)
@@ -251,6 +206,10 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             // 标记为“已经探索过”。
             foreach (var an in nodesToExplore)
                 GetStatus(an.Id).MarkAsExplored(NodeStatus.AuthorPapersExploration);
+            WAIT_FOR_EXPLORATIONS:
+            //确保返回前，所有 Exploring 的节点已经由此线程或其他线程处理完毕。
+            await Task.WhenAll(authorNodes.Select(n =>
+                GetStatus(n.Id).UntilExploredAsync(NodeStatus.AuthorPapersExploration)));
         }
 
         /// <summary>
@@ -296,7 +255,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                 {
                     if (g.Key == typeof (PaperNode) || g.Key == typeof (AuthorNode))
                         // 论文 -和- 作者 可以批量处理。
-                        return ExploreInterceptionNodesInternalAsync(g, node2);
+                        return ExploreInterceptionNodesInternalAsync(g.ToArray(), node2);
                     // 其它节点只能一个一个来。
                     return Task.WhenAll(g.Select(node => ExploreInterceptionNodesAsync(node, node2)));
                 });
@@ -306,7 +265,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         /// <summary>
         /// 根据给定的两个节点，探索能够与这两个节点相连的中间结点集合。
         /// </summary>
-        private Task ExploreInterceptionNodesAsync(IEnumerable<PaperNode> nodes1, KgNode node2)
+        private Task ExploreInterceptionNodesAsync(IReadOnlyList<PaperNode> nodes1, KgNode node2)
         {
             return ExploreInterceptionNodesInternalAsync(nodes1, node2);
         }
@@ -314,7 +273,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         /// <summary>
         /// 根据给定的两个节点，探索能够与这两个节点相连的中间结点集合。
         /// </summary>
-        private Task ExploreInterceptionNodesAsync(IEnumerable<AuthorNode> nodes1, KgNode node2)
+        private Task ExploreInterceptionNodesAsync(IReadOnlyList<AuthorNode> nodes1, KgNode node2)
         {
             // 多个作者只能一个一个搜。反正一篇文章应该没几个作者……吧？
             return Task.WhenAll(nodes1.Select(au => ExploreInterceptionNodesInternalAsync(new[] { au }, node2)));
@@ -333,21 +292,23 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         /// 注意，在代码中请使用 ExploreInterceptionNodesAsync 的重载。
         /// 不要直接调用此函数。
         /// </summary>
-        private async Task ExploreInterceptionNodesInternalAsync(IEnumerable<KgNode> nodes1, KgNode node2)
+        private async Task ExploreInterceptionNodesInternalAsync(IReadOnlyList<KgNode> nodes1, KgNode node2)
         {
             if (nodes1 == null) throw new ArgumentNullException(nameof(nodes1));
             if (node2 == null) throw new ArgumentNullException(nameof(node2));
-            var nodes1Array = nodes1 as KgNode[] ?? nodes1.ToArray();
-            if (nodes1Array.Length == 0)
+            //var nodes1Array = nodes1 as KgNode[] ?? nodes1.ToArray();
+            //if (nodes1Array.Length == 0)
+            //    return;     // Nothing to explore.
+            if (nodes1.Count == 0)
                 return;     // Nothing to explore.
             KgNode node1 = null;
             // PossibleMultipleEnumeration -- 反正只是一次 Cast<T>，反复枚举应该没什么问题。
-            IEnumerable<PaperNode> papers1 = null;
-            IEnumerable<AuthorNode> authors1 = null;
+            ICollection<PaperNode> papers1 = null;
+            ICollection<AuthorNode> authors1 = null;
             // 在进行上下文相关探索之前，先对两个节点进行局部探索。
-            if (nodes1Array.Length == 1)
+            if (nodes1.Count == 1)
             {
-                node1 = nodes1Array[0];
+                node1 = nodes1[0];
                 if (node1 is PaperNode)
                     papers1 = new[] { (PaperNode)node1 };
                 else if (node1 is AuthorNode)
@@ -358,21 +319,21 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             {
                 node1 = null;
                 Task nodes1Task;
-                if (nodes1Array[0] is PaperNode)
+                if (nodes1[0] is PaperNode)
                 {
-                    papers1 = nodes1Array.Cast<PaperNode>();
+                    papers1 = nodes1 as ICollection<PaperNode> ?? nodes1.Cast<PaperNode>().ToArray();
                     nodes1Task = LocalExploreAsync(papers1);
                 }
-                else if (nodes1Array[0] is AuthorNode)
+                else if (nodes1[0] is AuthorNode)
                 {
-                    authors1 = nodes1Array.Cast<AuthorNode>();
+                    authors1 = nodes1 as ICollection<AuthorNode> ?? nodes1.Cast<AuthorNode>().ToArray();
                     // 先按照局部探索把作者过一遍吧。
                     // 感觉似乎并无卵，但一切为了约定。
                     nodes1Task = Task.WhenAll(authors1.Select(LocalExploreAsync));
                 }
                 else
                 {
-                    throw new ArgumentException("无效的集合类型。请尝试使用单元素集合。", nameof(node1));
+                    throw new ArgumentException("集合包含元素的类型过于复杂。请尝试使用单元素集合多次调用。", nameof(node1));
                 }
                 await Task.WhenAll(nodes1Task, LocalExploreAsync(node2));
             }

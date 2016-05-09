@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -17,9 +18,14 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikServer.Controllers
 
         public IHttpActionResult Get()
         {
-            var indexSource = new FileStream(Startup.WwwFileSystemRoot + @"/index.html", FileMode.Open, FileAccess.Read);
+            var sb = new StringBuilder(File.ReadAllText(Startup.WwwFileSystemRoot + @"/index.html"));
+            using (var proc = Process.GetCurrentProcess())
+            {
+                sb.Replace("$WORKING_SET$", proc.WorkingSet64.ToString("#,#"));
+                sb.Replace("$PEAK_WORKING_SET$", proc.PeakWorkingSet64.ToString("#,#"));
+            }
             var response = new HttpResponseMessage(HttpStatusCode.OK);
-            response.Content = new StreamContent(indexSource);
+            response.Content = new StringContent(sb.ToString());
             response.Content.Headers.ContentType = MediaTypeHeaderValue.Parse("text/html");
             return new ResponseMessageResult(response);
         }

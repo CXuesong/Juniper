@@ -42,7 +42,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             foreach (var id3 in graph.AdjacentOutVertices(node1.Id))
             {
                 foreach (var id4 in graph.AdjacentOutVertices(id3))
-                    id4PredecessorsDict.GetOrAdd(id4).Add(id3);
+                    id4PredecessorsDict.GetOrAddNew(id4).Add(id3);
             }
             foreach (var id4 in graph.AdjacentInVertices(node2.Id))
             {

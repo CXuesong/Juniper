@@ -15,13 +15,10 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikServer
     /// </summary>
     class Program
     {
-        private static string[] baseAddress = {"http://localhost:9000/"};
-
         static void Main(string[] args)
         {
-            LoadConfigurations();
             var options = new StartOptions();
-            foreach (var ba in baseAddress) options.Urls.Add(ba);
+            foreach (var ba in Configurations.BaseAddresses) options.Urls.Add(ba);
             // Start OWIN host 
             using (WebApp.Start<Startup>(options))
             {
@@ -36,11 +33,5 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikServer
             }
         }
 
-        private static void LoadConfigurations()
-        {
-            var config = ConfigurationManager.AppSettings;
-            var addr = config["baseAddresses"]?.Split((char[]) null, StringSplitOptions.RemoveEmptyEntries);
-            if (addr != null && addr.Length > 0) baseAddress = addr;
-        }
     }
 }

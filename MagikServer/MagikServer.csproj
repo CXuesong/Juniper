@@ -85,6 +85,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Configurations.cs" />
     <Compile Include="Contract\Error.cs" />
     <Compile Include="Controllers\HomeController.cs" />
     <Compile Include="Controllers\MagikController.cs" />

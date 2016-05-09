@@ -65,7 +65,8 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             RegisterNode(node1);
             RegisterNode(node2);
             // 开始搜索。
-            var hops = await Task.WhenAll(FindHop12PathsAsync(node1, node2),
+            var hops = await Task.WhenAll(
+                FindHop12PathsAsync(node1, node2),
                 FindHop3PathsAsync(node1, node2));
             // Possible multiple enumeration of IEnumerable
             // I don't care
@@ -148,7 +149,15 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             private Dictionary<object, TaskCompletionSource<bool>> explorationTaskCompletionSourceDict
                 = new Dictionary<object, TaskCompletionSource<bool>>();
             private ReaderWriterLockSlim syncLock = new ReaderWriterLockSlim();
-            
+#if DEBUG
+            private readonly long _NodeId;
+
+            public override string ToString()
+            {
+                return _NodeId + ";" + string.Join(";", explorationStatusDict.Select(p => p.Key + "," + p.Value));
+            }
+#endif
+
             /// <summary>
             /// 如果当前节点处于 <see cref="ExplorationStatus.Unexplored"/> 状态，
             /// 则尝试将节点置于 <see cref="ExplorationStatus.Exploring" /> 状态。
@@ -175,6 +184,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                             return false;
                     }
                     explorationStatusDict[domainKey] = ExplorationStatus.Exploring;
+                    //Debug.WriteLine("Exploring-{0}: {1}", domainKey, this);
                     return true;
                 }
                 finally
@@ -211,7 +221,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                                 return Task.FromResult(false);
                             case ExplorationStatus.Exploring:
                                 // Wait for exploration
-                                var tcs = explorationTaskCompletionSourceDict.GetOrAdd(domainKey);
+                                var tcs = explorationTaskCompletionSourceDict.GetOrAddNew(domainKey);
                                 return tcs.Task;
                         }
                     }
@@ -219,6 +229,37 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                     return Task.FromResult(true);
                 }
                 finally 
+                {
+                    syncLock.ExitWriteLock();
+                }
+            }
+
+            /// <summary>
+            /// 等待直到节点处于 <see cref="ExplorationStatus.Explored" /> 状态。
+            /// </summary>
+            /// <param name="domainKey"></param>
+            /// <returns>
+            /// 任务会在（其他线程）探索结束后返回。
+            /// </returns>
+            public Task UntilExploredAsync(object domainKey)
+            {
+                if (domainKey == null) throw new ArgumentNullException(nameof(domainKey));
+                syncLock.EnterWriteLock();
+                try
+                {
+                    ExplorationStatus s;
+                    if (explorationStatusDict.TryGetValue(domainKey, out s))
+                    {
+                        if (s == ExplorationStatus.Explored)
+                            return Task.CompletedTask;
+                    }
+                    // Wait for exploration
+                    Debug.Assert(s == ExplorationStatus.Exploring,
+                        "试图等待一个处于 Unexplored 状态的节点。在当前实现中，此情况不应发生。");
+                    var tcs = explorationTaskCompletionSourceDict.GetOrAddNew(domainKey);
+                    return tcs.Task;
+                }
+                finally
                 {
                     syncLock.ExitWriteLock();
                 }
@@ -235,7 +276,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                 try
                 {
 #if DEBUG
-                    //Debug.Assert(explorationStatusDict[domainKey] == ExplorationStatus.Exploring);
+                    Debug.Assert(explorationStatusDict[domainKey] == ExplorationStatus.Exploring);
 #endif
                     explorationStatusDict[domainKey] = ExplorationStatus.Explored;
                     var tcs = explorationTaskCompletionSourceDict.TryGetValue(domainKey);
@@ -269,6 +310,13 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                 {
                     syncLock.ExitReadLock();
                 }
+            }
+
+            public NodeStatus(long nodeId)
+            {
+#if DEBUG
+                _NodeId = nodeId;
+#endif
             }
 
             ~NodeStatus()

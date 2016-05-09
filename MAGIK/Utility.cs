@@ -32,7 +32,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik
             return new HashSet<T>(source);
         }
 
-        public static TValue GetOrAdd<TKey, TValue>(this IDictionary<TKey, TValue> dict, TKey key)
+        public static TValue GetOrAddNew<TKey, TValue>(this IDictionary<TKey, TValue> dict, TKey key)
             where TValue : new()
         {
             if (dict == null) throw new ArgumentNullException(nameof(dict));

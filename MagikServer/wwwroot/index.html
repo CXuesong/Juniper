@@ -24,7 +24,7 @@
         }
 
         .spacing-block {
-            height: 100px;
+            height: 80px;
         }
 
         .product-name {
@@ -44,10 +44,18 @@
             /*height: 70px;*/
             width: 100%;
             color: gray;
+            
         }
 
         hr {
             color: black;
+        }
+
+        table.listing tbody th {
+            text-align: right;
+        }
+        table.listing tbody td {
+            text-align: left;
         }
     </style>
 </head>
@@ -78,8 +86,26 @@
         </div>
     </div>
     <div class="spacing-block"></div>
-    <footer>
-        <p align="center">建议配合 Cambria & Californian FB 字体，以获得最佳食用风味。</p>
+    <footer class="primary-block">
+        <table class="listing" style="margin: auto;">
+            <thead>
+                <tr><th colspan="2">状态</th></tr>
+            </thead>
+            <tbody>
+            <tr>
+                <th>工作集</th>
+                <td>$WORKING_SET$</td>
+            </tr>
+                <tr>
+                    <th>峰值工作集</th>
+                    <td>$PEAK_WORKING_SET$</td>
+                </tr>
+                <!--<tr>
+                    <th>CPU占用</th>
+                    <td>$CPU_USAGE$</td>
+                </tr>-->
+            </tbody>
+        </table>
     </footer>
 </body>
 </html>
