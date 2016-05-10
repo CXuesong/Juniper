@@ -20,7 +20,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             // Node1 -- Node3 -- Node4 -- Node2
             var paths = new List<KgNode[]>();
             var author1 = node1 as AuthorNode;
-            // 手动探索 node1 之后的所有节点。
+            // 手动探索 node1 ，得到其之后的所有节点。
             await LocalExploreAsync(node1);
             if (author1 != null)
             { 

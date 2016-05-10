@@ -28,9 +28,9 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
         // The subscription key name
         private const string _subscriptionKeyName = "Ocp-Apim-Subscription-Key";
         private string _subscriptionKey;
-        private int _PagingSize = 1000;
 
-        //private static readonly TraceSource traceSource = new TraceSource("Magik.Academic");
+        private int _PagingSize = 1000;
+        private int _MaxRetries = 2;
 
         /// <summary>
         /// 初始化一个新的 <see cref="VisionServiceClient"/> 实例。
@@ -81,7 +81,15 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
         /// <summary>
         /// 最大重试次数。
         /// </summary>
-        public int MaxRetries { get; set; } = 2;
+        public int MaxRetries
+        {
+            get { return _MaxRetries; }
+            set
+            {
+                if (value < 0) throw new ArgumentOutOfRangeException(nameof(value));
+                _MaxRetries = value;
+            }
+        }
 
         /// <summary>
         /// 提交请求时自动的分页大小。
@@ -106,8 +114,10 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
         #endregion
 
         #region 统计信息
+
         private long queryCounter = 0;
         private long queryTimeMs = 0;
+
         #endregion
 
         /// <summary>
@@ -135,6 +145,8 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
             Logger.AcademicSearch.Enter(this, $"{expression}; ({offset},{offset + count}]");
             var requestUrl =
                 $"{ServiceHostUrl}/evaluate?expr={expression}&model=latest&count={count}&offset={offset}&orderby={orderBy}&attributes={attributes ?? EvaluationDefaultAttributes}{QuerySuffix}";
+            // 我们要保证查询字符串不要太长。
+            Debug.Assert(requestUrl.Length < SearchExpressionBuilder.MaxQueryLength - 10);
             var request = WebRequest.Create(requestUrl);
             InitializeRequest(request, "GET");
             var result = await SendAsync<EvaluationResult>(request);
@@ -178,8 +190,9 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
                     // 多读一页应该不会有问题吧。
                     sessionPages = 1;
                 }
+                var offset1 = offset;       // Access to modified closure.
                 var result = await Task.WhenAll(Enumerable.Range(0, sessionPages).Select(i =>
-                    EvaluateAsync(expression, PagingSize, offset + i*PagingSize, orderBy, attributes)));
+                    EvaluateAsync(expression, PagingSize, offset1 + i*PagingSize, orderBy, attributes)));
                 results.AddRange(result.SelectMany(er => er.Entities));
                 if (result.Any(er => er.Entities.Count < PagingSize))
                 {

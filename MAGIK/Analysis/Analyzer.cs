@@ -15,7 +15,7 @@ using Microsoft.Contests.Bop.Participants.Magik.Academic.Contract;
 
 namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
 {
-    public partial class Analyzer
+    public partial class Analyzer : AnalyzerBase
     {
         // 约定：使用 Graph 保存 Id 之间的连接关系。
         // 不要使用 DirectedGraph<KgNode> 。否则在试图根据 Id 查找节点信息时可能会遇到麻烦。
@@ -30,13 +30,11 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         // 因此，使用 status 映射处理这些可变状态。
         private readonly ConcurrentDictionary<long, NodeStatus> status = new ConcurrentDictionary<long, NodeStatus>();
 
-        public AcademicSearchClient SearchClient { get; }
-
 
         public Analyzer(AcademicSearchClient asClient)
+            : base(asClient)
         {
-            if (asClient == null) throw new ArgumentNullException(nameof(asClient));
-            this.SearchClient = asClient;
+
         }
 
         /// <summary>
@@ -53,7 +51,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         /// <remarks>
         /// 此函数应该是线程安全的……吧？
         /// </remarks>
-        public async Task<KgNode[][]> FindPathsAsync(long id1, long id2)
+        public override async Task<KgNode[][]> FindPathsAsync(long id1, long id2)
         {
             Logger.Magik.Enter(this, $"{id1} -> {id2}");
             var sw = Stopwatch.StartNew();
@@ -72,7 +70,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                 FindHop12PathsAsync(node1, node2),
                 FindHop3PathsAsync(node1, node2));
             var result = hops.SelectMany(hop => hop)
-                .Distinct(new ArrayEqualityComparer<KgNode>(KgNodeEqualityComparer.Default))
+                .Distinct(ArrayEqualityComparer<KgNode>.Default)
                 .ToArray();
             Logger.Magik.Success(this, "在 {0} - {1} 之间找到了 {2} 条路径。用时： {3} 。", node1, node2, result.Length, sw.Elapsed);
             Logger.Magik.Exit(this);
@@ -343,6 +341,20 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             }
 
             /// <summary>
+            /// 确定指定的对象是否等于当前对象。
+            /// </summary>
+            /// <returns>
+            /// 如果指定的对象等于当前对象，则为 true，否则为 false。
+            /// </returns>
+            /// <param name="obj">要与当前对象进行比较的对象。</param>
+            public override bool Equals(object obj)
+            {
+                var other = obj as ExplorationDomainKey;
+                if (other == null) return false;
+                return Equals(other);
+            }
+
+            /// <summary>
             /// 作为默认哈希函数。
             /// </summary>
             /// <returns>
@@ -397,11 +409,23 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             {
                 return Name.GetHashCode();
             }
+
+            /// <summary>
+            /// 返回表示当前对象的字符串。
+            /// </summary>
+            /// <returns>
+            /// 表示当前对象的字符串。
+            /// </returns>
+            public override string ToString()
+            {
+                return Name;
+            }
         }
 
         /// <summary>
         /// 表示此节点和另一个节点之间的所有中间节点的探索情况。
         /// 尤其是指使用 <see cref="ExploreInterceptionNodesInternalAsync"/> 进行探索的情况。
+        /// 注意，探索的方向为 被标记的节点 指向 <see cref="AnotherNodeId"/> 对应的节点。
         /// </summary>
         private class InterceptionExplorationDomainKey : ExplorationDomainKey
         {
@@ -424,6 +448,17 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             protected override int GetHashCodeCore()
             {
                 return AnotherNodeId.GetHashCode();
+            }
+
+            /// <summary>
+            /// 返回表示当前对象的字符串。
+            /// </summary>
+            /// <returns>
+            /// 表示当前对象的字符串。
+            /// </returns>
+            public override string ToString()
+            {
+                return $"Interception({AnotherNodeId})";
             }
         }
     }

@@ -91,20 +91,15 @@ namespace Microsoft.Contests.Bop.Participants.Magik
             return $"{ex.GetType().Name}:{ex.Message}";
         }
 
-        ///// <summary>
-        ///// 展开异常。（假定如果是 AggregateException，则其仅包含一个异常。）
-        ///// </summary>
-        //public static Exception ExpandException(Exception ex)
-        //{
-        //    if (ex == null) throw new ArgumentNullException(nameof(ex));
-        //    var agg = ex as AggregateException;
-        //    if (agg != null)
-        //    {
-        //        Debug.Assert(agg.InnerExceptions.Count == 1);
-        //        return agg.InnerExceptions[0];
-        //    }
-        //    return ex;
-        //}
+        /// <summary>
+        /// 使用默认的相等比较器，判断指定列表中的元素是否非重复。
+        /// </summary>
+        public static bool IsDistinct<T>(this IEnumerable<T> source)
+        {
+            if (source == null) throw new ArgumentNullException(nameof(source));
+            var set = new HashSet<T>();
+            return source.All(item => set.Add(item));
+        }
     }
 
     /// <summary>

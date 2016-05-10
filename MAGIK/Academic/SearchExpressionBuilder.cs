@@ -31,6 +31,11 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
         /// </summary>
         public const int MaxChainedAuIdCount = 50;
 
+        /// <summary>
+        /// 最大允许的 And(FId=122026561929,) 并联数量。
+        /// </summary>
+        public const int MaxChainedFIdCount = 84;
+
         public static string EntityIdEquals(long id)
             => $"Id={id}";
 
@@ -41,17 +46,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
         /// 要求实体 Id 是给定集合中的一个 Id 。ids 数量不应当超过 85 。
         /// </summary>
         public static string EntityIdIn(IEnumerable<long> ids)
-        {
-            if (ids == null) throw new ArgumentNullException(nameof(ids));
-            Debug.Assert(ids.Count() <= MaxChainedIdCount);
-            string expr = null;
-            foreach (var id in ids)
-            {
-                if (expr == null) expr = EntityIdEquals(id);
-                else expr = Or(expr, EntityIdEquals(id));
-            }
-            return expr;
-        }
+            => ChainExpressions(ids.Select(EntityIdEquals), "Or");
 
         public static string ReferenceIdContains(long id)
             => $"RId={id}";
@@ -63,17 +58,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
         /// 要求实体存在一个作者的 AuId 是给定集合中的一个 Id 。ids 数量不应当超过 50 。
         /// </summary>
         public static string AuthorIdIn(IEnumerable<long> ids)
-        {
-            if (ids == null) throw new ArgumentNullException(nameof(ids));
-            Debug.Assert(ids.Count() <= MaxChainedIdCount);
-            string expr = null;
-            foreach (var id in ids)
-            {
-                if (expr == null) expr = AuthorIdContains(id);
-                else expr = Or(expr, AuthorIdContains(id));
-            }
-            return expr;
-        }
+            => ChainExpressions(ids.Select(AuthorIdContains), "Or");
 
         public static string AffiliationIdContains(long id)
             => $"Composite(AA.AfId={id})";
@@ -90,8 +75,11 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
         public static string JournalIdEquals(long id)
             => $"Composite(J.JId={id})";
 
-        public static string FieldOfStudyIdEquals(long id)
+        public static string FieldOfStudyIdContains(long id)
             => $"Composite(F.FId={id})";
+
+        public static string FieldOfStudyIdIn(IEnumerable<long> ids)
+            => ChainExpressions(ids.Select(FieldOfStudyIdContains), "Or");
 
         public static string EntityOrAuthorIdEquals(long id)
             => $"Or(Id={id},Composite(AA.AuId={id}))";
@@ -101,5 +89,35 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
 
         public static string Or(string expr1, string expr2)
             => $"Or({expr1},{expr2})";
+
+        private static string ChainExpressions(IEnumerable<string> subExpressions, string relationKeyword)
+        {
+            Debug.Assert(subExpressions != null);
+            var sb = new StringBuilder();
+            var lastStartingIndex = -1;
+            var counter = 0;
+            string lastExpr = null;
+            // AND(expr1, AND(expr2, expr3))
+            // AND(expr1, AND(expr2, AND(expr3, 
+            foreach (var expr in subExpressions)
+            {
+                lastExpr = expr;
+                lastStartingIndex = sb.Length;
+                sb.Append(relationKeyword);
+                sb.Append('(');
+                sb.Append(expr);
+                sb.Append(',');
+                counter++;
+            }
+            if (counter == 0) return string.Empty;
+            if (counter == 1) return lastExpr;
+            // Fallback
+            // AND(expr1, AND(expr2, AND(expr3, 
+            //                       ^ LastStartingIndex
+            sb.Remove(lastStartingIndex - 1, sb.Length - lastStartingIndex);
+            sb.Append(lastExpr);
+            sb.Append(')', counter - 1);
+            return sb.ToString();
+        }
     }
 }

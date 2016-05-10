@@ -254,8 +254,11 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                 .ToLookup(n => n.GetType())
                 .Select(g =>
                 {
-                    if (g.Key == typeof (PaperNode) || g.Key == typeof (AuthorNode))
-                        // 论文 -和- 作者 可以批量处理。
+                    if (g.Key == typeof (PaperNode)
+                        || g.Key == typeof (AuthorNode)
+                        || g.Key == typeof (AffiliationNode)
+                        || g.Key == typeof (FieldOfStudyNode))
+                        // 论文、作者、组织、领域 可以批量处理。
                         return ExploreInterceptionNodesInternalAsync(g.ToArray(), node2);
                     // 其它节点只能一个一个来。
                     return Task.WhenAll(g.Select(node => ExploreInterceptionNodesAsync(node, node2)));
@@ -297,17 +300,20 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         {
             if (nodes1 == null) throw new ArgumentNullException(nameof(nodes1));
             if (node2 == null) throw new ArgumentNullException(nameof(node2));
-            if (nodes1.Count == 0)
-                return;     // Nothing to explore.
-            KgNode node1 = null;
+            if (nodes1.Count == 0) return;     // Nothing to explore.
+            KgNode node1;
             var explore12DomainKey = new InterceptionExplorationDomainKey(node2.Id);
-            var node2Status = GetStatus(node2.Id);
+            // 注意， node1 和 node2 的方向是不能互换的，
+            // 所以不要想着把对侧也标记为已经探索过了。
             var nodes1ToExplore = nodes1
                 .Where(n => GetStatus(n.Id).TryMarkAsExploring(explore12DomainKey))
                 .ToArray();
+            Debug.Assert(nodes1ToExplore.IsDistinct());
             if (nodes1ToExplore.Length == 0) goto WAIT_FOR_EXPLORATIONS;
             IReadOnlyCollection<PaperNode> papers1 = null;
             IReadOnlyCollection<AuthorNode> authors1 = null;
+            IReadOnlyCollection<AffiliationNode> affiliations1 = null;
+            IReadOnlyCollection<FieldOfStudyNode> foss1 = null;
             // 在进行上下文相关探索之前，先对两个节点进行局部探索。
             if (nodes1ToExplore.Length == 1)
             {
@@ -316,6 +322,10 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                     papers1 = new[] { (PaperNode)node1 };
                 else if (node1 is AuthorNode)
                     authors1 = new[] {(AuthorNode) node1};
+                else if (node1 is AffiliationNode)
+                    affiliations1 = new[] {(AffiliationNode) node1};
+                else if (node1 is FieldOfStudyNode)
+                    foss1 = new[] {(FieldOfStudyNode) node1};
                 await Task.WhenAll(LocalExploreAsync(node1), LocalExploreAsync(node2));
             }
             else
@@ -330,9 +340,17 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                 else if (nodes1ToExplore[0] is AuthorNode)
                 {
                     authors1 = nodes1ToExplore.Cast<AuthorNode>().ToArray();
-                    // 先按照局部探索把作者过一遍吧。
-                    // 感觉似乎并无卵，但一切为了约定。
                     nodes1Task = Task.WhenAll(authors1.Select(LocalExploreAsync));
+                }
+                else if (nodes1ToExplore[0] is AffiliationNode)
+                {
+                    affiliations1 = nodes1ToExplore.Cast<AffiliationNode>().ToArray();
+                    nodes1Task = Task.WhenAll(affiliations1.Select(LocalExploreAsync));
+                }
+                else if (nodes1ToExplore[0] is FieldOfStudyNode)
+                {
+                    foss1 = nodes1ToExplore.Cast<FieldOfStudyNode>().ToArray();
+                    nodes1Task = Task.WhenAll(foss1.Select(LocalExploreAsync));
                 }
                 else
                 {
@@ -374,13 +392,15 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             };
             if (paper2 != null)
             {
-                // 带有 作者/会议/期刊 等属性限制，搜索引用中含有 paper2 的论文 Id。
+                // 带有 作者/会议/期刊 等属性限制，
+                // 搜索 >引用< 中含有 paper2 的论文 Id。
                 // attributeConstraint 可以长一些。
-                Func<string, Task> ExploreToPaper2WithAttributes =
+                Func<string, Task> ExploreCitationsToPaper2WithAttributes =
                     async attributeConstraint =>
                     {
                         // 一般来说， Paper2 肯定就是题目中的终结点，
                         // 因此我们是知道其具体信息的。
+                        // TODO 然而现在有缓存了，情况可能会发生变化。
                         Debug.Assert(!paper2.IsStub);
                         var maxPapers = paper2.IsStub
                             ? Assumptions.PaperMaxCitations
@@ -408,28 +428,47 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                     await Task.WhenAll(authors1
                         .Select(n => n.Id)
                         .Partition(SEB.MaxChainedAuIdCount)
-                        .Select(id1s => ExploreToPaper2WithAttributes(SEB.AuthorIdIn(id1s))));
+                        .Select(id1s => ExploreCitationsToPaper2WithAttributes(SEB.AuthorIdIn(id1s))));
                 }
-                else if (node1 is FieldOfStudyNode)
+                else if (affiliations1 != null)
+                {
+                    // AA.AfId <-> AA.AuId <-> Id
+                    // 注意，要确认 AuId 是否位于 nodes1 列表中。
+                    // 这里的 AuId 是 Id2 论文的作者列表。
+                    await Task.WhenAll((from aff in affiliations1
+                        from au in graph.AdjacentOutVertices(node2.Id)
+                            .Select(id => nodes[id]).OfType<AuthorNode>()
+                        select new
+                        {
+                            AuthorId = au.Id,
+                            AffiliationId = aff.Id
+                        })
+                        .Select(async pair =>
+                        {
+                            if (graph.Contains(pair.AuthorId, pair.AffiliationId)) return;
+                            if (await SearchClient.EvaluationHasResultAsync(SEB.AuthorIdWithAffiliationIdContains(
+                                pair.AuthorId, pair.AffiliationId)))
+                            {
+                                RegisterEdge(pair.AuthorId, pair.AffiliationId, true);
+                            }
+                        }));
+                }
+                else if (foss1 != null)
                 {
                     // F.FId <-> Id -> Id
-                    await
-                        ExploreToPaper2WithAttributes(SEB.FieldOfStudyIdEquals(node1.Id));
+                    await Task.WhenAll(foss1.Select(fos => fos.Id)
+                        .Partition(SEB.MaxChainedFIdCount)
+                        .Select(fids => ExploreCitationsToPaper2WithAttributes(SEB.FieldOfStudyIdIn(fids))));
                 }
                 else if (node1 is ConferenceNode)
                 {
                     // F.FId <-> Id -> Id
-                    await ExploreToPaper2WithAttributes(SEB.ConferenceIdEquals(node1.Id));
+                    await ExploreCitationsToPaper2WithAttributes(SEB.ConferenceIdEquals(node1.Id));
                 }
                 else if (node1 is JournalNode)
                 {
                     // F.FId <-> Id -> Id
-                    await ExploreToPaper2WithAttributes(SEB.JournalIdEquals(node1.Id));
-                }
-                else if (node1 is AffiliationNode)
-                {
-                    // AA.AfId <-> AA.AuId <-> Id
-                    await ExploreToPaper2WithAttributes(SEB.JournalIdEquals(node1.Id));
+                    await ExploreCitationsToPaper2WithAttributes(SEB.JournalIdEquals(node1.Id));
                 }
             }
             else if (node2 is AuthorNode)

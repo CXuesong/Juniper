@@ -1,4 +1,5 @@
 ﻿#define CACHE_TEST_ENABLED
+#define SKIP_HUGE_TEST_CASES
 
 using System;
 using System.Collections;
@@ -71,16 +72,26 @@ namespace UnitTestProject1
         }
 
         /// <summary>
+        /// 在单元测试函数体内部声明此测试是一个大型测试用例。
+        /// </summary>
+        [Conditional("SKIP_HUGE_TEST_CASES")]
+        private void DeclareHugeTestCase()
+        {
+            Assert.Inconclusive("已跳过对大型测试用例的测试。");
+        }
+
+        /// <summary>
         /// 1-Hop Id - AuId
         /// </summary>
         [TestMethod]
         public void AnalyzerTestPreliminary1()
         {
+            // 5-10: 260 -> 261
             // 2157025439: what do people ask their social networks and why a survey study of status message q a behavior
             // 1982462162: Jaime Teevan
             var paths = FindPaths(2157025439, 1982462162, true);
             // 1/2 hop + 3-hop
-            AssertPathsCount(paths, 2 + 258);
+            AssertPathsCount(paths, 2 + 259);
             AssertPathExists(paths, 2157025439, 1982462162);
         }
 
@@ -90,11 +101,12 @@ namespace UnitTestProject1
         [TestMethod]
         public void AnalyzerTestMethodEasy1()
         {
+            // 5-10: 244 -> 255
             // 2157025439: what do people ask their social networks and why a survey study of status message q a behavior
             // 2061503185: implicit feedback for inferring user preference a bibliography
             var paths = FindPaths(2157025439, 2061503185, true);
             // 1/2 hop + 3-hop
-            AssertPathsCount(paths, 3 + 241);
+            AssertPathsCount(paths, 3 + 252);
             AssertPathExists(paths, 2157025439, 2122841972, 2061503185);
             // 1982462162: Jaime Teevan
             AssertPathExists(paths, 2157025439, 1982462162, 2061503185);
@@ -108,10 +120,11 @@ namespace UnitTestProject1
         [TestMethod]
         public void AnalyzerTestMethodEasy2()
         {
+            // 5-10: 147 -> 181
             // 1982462162: Jaime Teevan
             // 676500258: Susan T Dumais
             var paths = FindPaths(1982462162, 676500258, true);
-            AssertPathsCount(paths, 39 + 108);
+            AssertPathsCount(paths, 47 + 134);
             // 2057034832: Understanding Temporal Query Dynamics
             AssertPathExists(paths, 1982462162, 2057034832, 676500258);
             // 1290206253: Microsoft
@@ -124,10 +137,11 @@ namespace UnitTestProject1
         [TestMethod]
         public void AnalyzerTestMethodMedium1()
         {
+            // 5-10: 1528 -> 1431
             // 2128366083: resolution limit in community detection
             // 2112090702: collective dynamics of small world network
             var paths = FindPaths(2128366083, 2112090702, true);
-            AssertPathsCount(paths, 4 + 1524);
+            AssertPathsCount(paths, 4 + 1431);
             // 2164928285: uncovering the overlapping community structure of complex networks in nature and society
             AssertPathExists(paths, 2128366083, 2164928285, 2112090702);
             // Other papers
@@ -142,8 +156,9 @@ namespace UnitTestProject1
         [TestMethod]
         public void AnalyzerTestMethod190()
         {
+            // 5-10: 190 -> 204
             var paths = FindPaths(1502768748, 2122841972, true);
-            AssertPathsCount(paths, 190);
+            AssertPathsCount(paths, 204);
         }
 
         /// <summary>
@@ -152,8 +167,9 @@ namespace UnitTestProject1
         [TestMethod]
         public void AnalyzerTestMethod2595()
         {
+            // 5-10: 2595 -> 3592
             var paths = FindPaths(2126125555, 2153635508, true);
-            AssertPathsCount(paths, 2595);
+            AssertPathsCount(paths, 3592);
         }
 
         /// <summary>
@@ -162,8 +178,11 @@ namespace UnitTestProject1
         [TestMethod]
         public void AnalyzerTestMethod5616()
         {
+            // 5-10 从 5616 变成了 5903 。
+            // [PaperNode:2126125555] Cross Domain Activity Recognition Via Transfer Learning
+            // [PaperNode:2060367530] Statistical Learning Theory
             var paths = FindPaths(2126125555, 2060367530, true);
-            AssertPathsCount(paths, 5616);
+            AssertPathsCount(paths, 5903);
         }
 
         /// <summary>
@@ -172,8 +191,11 @@ namespace UnitTestProject1
         [TestMethod]
         public void AnalyzerTestMethod83()
         {
+            // 5-10: 83 -> 122
+            // [AuthorNode:2175015405] Xiaolei Li
+            // [AuthorNode:2121939561] Jiawei Han
             var paths = FindPaths(2175015405, 2121939561, true);
-            AssertPathsCount(paths, 83);
+            AssertPathsCount(paths, 122);
         }
 
 
@@ -183,8 +205,11 @@ namespace UnitTestProject1
         [TestMethod]
         public void AnalyzerTestMethod448()
         {
+            // 5-10: 448 -> 501
+            // [AuthorNode:2145115012] Yu Zheng
+            // [AuthorNode:2125800575] Xing Xie
             var paths = FindPaths(2145115012, 2125800575, true);
-            AssertPathsCount(paths, 448);
+            AssertPathsCount(paths, 501);
         }
 
         /// <summary>
@@ -194,8 +219,11 @@ namespace UnitTestProject1
         [TestMethod]
         public void AnalyzerTestMethod2470()
         {
+            // 5-10: 2470 -> 2708
+            // [PaperNode:189831743] Preparing For The Use Of Classification In Online Cataloging Systems And In Online Catalogs
+            // [PaperNode:2147152072] Indexing By Latent Semantic Analysis
             var paths = FindPaths(189831743, 2147152072, true);
-            AssertPathsCount(paths, 2470);
+            AssertPathsCount(paths, 2708);
         }
 
         /// <summary>
@@ -204,12 +232,55 @@ namespace UnitTestProject1
         [TestMethod]
         public void AnalyzerTestMethod38()
         {
+            // 05-10 38 -> 19
+            // [AuthorNode:621499171] Ulrich K Laemmli
+            // [PaperNode:2100837269] Cleavage Of Structural Proteins During The Assembly Of The Head Of Bacteriophage T4
             var paths = FindPaths(621499171, 2100837269, true);
             AssertPathExists(paths, 621499171, 2034796909, 1968806977, 2100837269);
             AssertPathExists(paths, 621499171, 2034796909, 1970107317, 2100837269);
+            // 05-10 新增断言。
+            AssertPathExists(paths, 621499171, 1315039220, 258089896, 2100837269);
             // 注意这是一个环。
-            AssertPathExists(paths, 621499171, 1315039220, 621499171, 2100837269);
-            AssertPathsCount(paths, 38);
+            // 05-10 这个环消失了……
+            //AssertPathExists(paths, 621499171, 1315039220, 621499171, 2100837269);
+            AssertPathsCount(paths, 19);
+        }
+
+        /// <summary>
+        /// 陈楷予 的测试样例。
+        /// </summary>
+        [TestMethod]
+        public void AnalyzerTestMethod62110()
+        {
+            DeclareHugeTestCase();
+            // [PaperNode:2107710616] Selected reaction monitoring for quantitative proteomics: a tutorial
+            // [PaperNode:2128635872] A rapid and sensitive method for the quantitation of microgram quantities of protein utilizing the principle of protein-dye binding.
+            var paths = FindPaths(2107710616, 2128635872, true);
+            AssertPathsCount(paths, 62110);
+        }
+
+        /// <summary>
+        /// 万里云间 的测试样例。
+        /// </summary>
+        [TestMethod]
+        public void AnalyzerTestMethod49()
+        {
+            // [AuthorNode:2146007994] Paul E Goss
+            // [PaperNode:2100837269] Cleavage Of Structural Proteins During The Assembly Of The Head Of Bacteriophage T4
+            var paths = FindPaths(2146007994, 2100837269, true);
+            AssertPathsCount(paths, 49);
+        }
+
+        /// <summary>
+        /// Welthy 的测试样例。
+        /// </summary>
+        [TestMethod]
+        public void AnalyzerTestMethod2708()
+        {
+            // [AuthorNode:2146007994] Paul E Goss
+            // [PaperNode:2100837269] Cleavage Of Structural Proteins During The Assembly Of The Head Of Bacteriophage T4
+            var paths = FindPaths(189831743, 2147152072, true);
+            AssertPathsCount(paths, 2708);
         }
 
         /// <summary>
@@ -218,6 +289,8 @@ namespace UnitTestProject1
         [TestMethod]
         public void AnalyzerTestBop1()
         {
+            // [AuthorNode:2251253715] Raquel Pau
+            // [PaperNode:2180737804] Cloudmdsql Querying Heterogeneous Cloud Data Stores With A Common Language
             var paths = FindPaths(2251253715, 2180737804, true);
             Assert.AreEqual(14, paths.Count);
         }
@@ -228,6 +301,8 @@ namespace UnitTestProject1
         [TestMethod]
         public void AnalyzerTestBop2()
         {
+            // [PaperNode:2147152072] Indexing By Latent Semantic Analysis
+            // [PaperNode:189831743] Preparing For The Use Of Classification In Online Cataloging Systems And In Online Catalogs
             var paths = FindPaths(2147152072, 189831743, true);
             Assert.AreEqual(18, paths.Count);
         }
@@ -238,6 +313,8 @@ namespace UnitTestProject1
         [TestMethod]
         public void AnalyzerTestBop3()
         {
+            // [PaperNode:2332023333] Recovering Transparent Shape From Time Of Flight Distortion
+            // [PaperNode:2310280492] A Robust Multilinear Model Learning Framework For 3D Faces
             var paths = FindPaths(2332023333, 2310280492, true);
             Assert.AreEqual(1, paths.Count);
         }

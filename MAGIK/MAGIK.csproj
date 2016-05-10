@@ -58,6 +58,7 @@
     <Compile Include="Analysis\Analyzer0.cs" />
     <Compile Include="Analysis\Analyzer12.cs" />
     <Compile Include="Analysis\Analyzer3.cs" />
+    <Compile Include="Analysis\AnalyzerBase.cs" />
     <Compile Include="Analysis\DirectedGraph.cs" />
     <Compile Include="Analysis\KgNode.cs" />
     <Compile Include="Analysis\KgNodeCollection.cs" />

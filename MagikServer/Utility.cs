@@ -22,15 +22,22 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikServer
         public static Analyzer GetAnalyzer()
         {
             // TODO 检查线程安全性。
+            var analyzer = cachedAnalyzer;
             if (cachedAnalyzer == null 
                 || !Configurations.AnalyzerCacheAllowed
-                || DateTime.Now - cachedAnalyzerCreationTime > TimeSpan.FromHours(12))
+                || DateTime.Now - cachedAnalyzerCreationTime > TimeSpan.FromMinutes(30))
             {
-                cachedAnalyzer = new Analyzer(GlobalServices.CreateASClient());
-                cachedAnalyzer.SearchClient.PagingSize = Configurations.ASClientPagingSize;
+                analyzer = new Analyzer(GlobalServices.CreateASClient());
+                analyzer.SearchClient.PagingSize = Configurations.ASClientPagingSize;
+                cachedAnalyzer = analyzer;
                 cachedAnalyzerCreationTime = DateTime.Now;
             }
-            return cachedAnalyzer;
+            return analyzer;
+        }
+
+        public static void PurgeAnalyzer()
+        {
+            cachedAnalyzer = null;
         }
     }
 }

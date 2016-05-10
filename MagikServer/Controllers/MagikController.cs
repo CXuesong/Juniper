@@ -21,23 +21,39 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikServer.Controllers
     {
         /// <summary>
         /// 主要 API 入口。
+        /// 同时，对于无参数的 API 调用，也会经过此处。
         /// </summary>
         [Route("magik/v1/paths")]
-        public Task<IHttpActionResult> Get(string expr)
+        public Task<IHttpActionResult> Get(string expr = null, string action = null)
         {
-            long[] idPair;
-            try
+            if (action != null)
             {
-                idPair = JsonConvert.DeserializeObject<long[]>(expr);
+                switch (action)
+                {
+                    case "purge":
+                        Utility.PurgeAnalyzer();
+                        break;
+                    default:
+                        throw new ArgumentException("无效的操作。", nameof(action));
+                }
             }
-            catch (Exception ex) when (ex is JsonSerializationException
-                                       || ex is JsonReaderException)
+            if (expr != null)
             {
-                throw new ArgumentException(ex.Message, nameof(expr));
+                long[] idPair;
+                try
+                {
+                    idPair = JsonConvert.DeserializeObject<long[]>(expr);
+                }
+                catch (Exception ex) when (ex is JsonSerializationException
+                                           || ex is JsonReaderException)
+                {
+                    throw new ArgumentException(ex.Message, nameof(expr));
+                }
+                if (idPair.Length != 2)
+                    throw new ArgumentException("无效的节点对。节点对有且仅有两个元素。", nameof(expr));
+                return Get(idPair[0], idPair[1]);
             }
-            if (idPair.Length != 2)
-                throw new ArgumentException("无效的节点对。节点对有且仅有两个元素。", nameof(expr));
-            return Get(idPair[0], idPair[1]);
+            return Task.FromResult((IHttpActionResult)Ok());
         }
 
         /// <summary>
@@ -49,8 +65,6 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikServer.Controllers
         /// then calculate your score by accuracy and running time.
         /// </remarks>
         [Route("magik/v1/paths")]
-        [JsonArgumentExceptionFilter]
-        [JsonExceptionsFilter]
         public async Task<IHttpActionResult> Get(long id1, long id2)
         {
             var analyzer = Utility.GetAnalyzer();

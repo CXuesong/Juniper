@@ -14,7 +14,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
     /// 表示知识图上的一个节点。这是一个公共基类。
     /// 并且，我正试图让这个类成为一个非可变类型。
     /// </summary>
-    public abstract class KgNode
+    public abstract class KgNode : IEquatable<KgNode>
     {
         /// <summary>
         /// 表示一个空白的结点集合。
@@ -49,6 +49,45 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         /// <param name="asClient"></param>
         /// <seealso cref="Analyzer.ExploreInterceptionNodesInternalAsync"/>
         public abstract Task<ICollection<KgNode>> GetAdjacentNodesAsync(AcademicSearchClient asClient);
+
+        /// <summary>
+        /// 指示当前对象是否等于同一类型的另一个对象。
+        /// </summary>
+        /// <returns>
+        /// 如果当前对象等于 <paramref name="other"/> 参数，则为 true；否则为 false。
+        /// </returns>
+        /// <param name="other">与此对象进行比较的对象。</param>
+        public bool Equals(KgNode other)
+        {
+            if (other == null) return false;
+            if (this == other) return true;
+            return Id == other.Id;
+        }
+
+        /// <summary>
+        /// 作为默认哈希函数。
+        /// </summary>
+        /// <returns>
+        /// 当前对象的哈希代码。
+        /// </returns>
+        public override int GetHashCode()
+        {
+            return Id.GetHashCode();
+        }
+
+        /// <summary>
+        /// 确定指定的对象是否等于当前对象。
+        /// </summary>
+        /// <returns>
+        /// 如果指定的对象等于当前对象，则为 true，否则为 false。
+        /// </returns>
+        /// <param name="obj">要与当前对象进行比较的对象。</param>
+        public override bool Equals(object obj)
+        {
+            var other = obj as KgNode;
+            if (other == null) return false;
+            return Equals(other);
+        }
 
         /// <summary>
         /// 返回表示当前对象的字符串。
@@ -135,18 +174,6 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         /// 判断此节点是否为仅包含论文 Id，不包含其它任何信息的存根。
         /// </summary>
         public bool IsStub => loadedNodes == null;
-
-        /// <summary>
-        /// 对于由 Entity 生成的 PaperNode ，直接获取本地缓存中的作者信息。
-        /// </summary>
-        public IEnumerable<AuthorNode> Authors
-        {
-            get
-            {
-                ValidateCache();
-                return loadedNodes.OfType<AuthorNode>();
-            }
-        }
 
         /// <summary>
         /// 论文被引用的次数。
@@ -323,38 +350,6 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         public override Task<ICollection<KgNode>> GetAdjacentNodesAsync(AcademicSearchClient asClient)
         {
             return Task.FromResult((ICollection<KgNode>)EmptyNodes);
-        }
-    }
-
-    /// <summary>
-    /// 用于根据 Id 比较两个 <see cref="KgNode"/> 的等价性。
-    /// </summary>
-    public class KgNodeEqualityComparer : EqualityComparer<KgNode>
-    {
-        public new static readonly KgNodeEqualityComparer Default = new KgNodeEqualityComparer();
-
-        /// <summary>
-        /// 确定类型的两个对象的 Id 是否相等。
-        /// </summary>
-        /// <returns>
-        /// 如果指定的对象相等，则为 true；否则为 false。
-        /// </returns>
-        /// <param name="x">要比较的第一个对象。</param><param name="y">要比较的第二个对象。</param>
-        public override bool Equals(KgNode x, KgNode y)
-        {
-            return x?.Id == y?.Id;
-        }
-
-        /// <summary>
-        /// 在派生类中重写时，用作指定对象的哈希算法和数据结构（如哈希表）的哈希函数。
-        /// </summary>
-        /// <returns>
-        /// 指定对象的哈希代码。
-        /// </returns>
-        /// <param name="obj">要为其获取哈希代码的对象。</param><exception cref="T:System.ArgumentNullException">The type of <paramref name="obj"/> is a reference type and <paramref name="obj"/> is null.</exception>
-        public override int GetHashCode(KgNode obj)
-        {
-            return obj?.Id.GetHashCode() ?? 0;
         }
     }
 }

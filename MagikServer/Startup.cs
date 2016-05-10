@@ -47,10 +47,8 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikServer
             appBuilder.Use(RequestLoggingMiddleware);
             {
                 var config = new HttpConfiguration();
-                
-                
                 config.Services.Add(typeof(IExceptionLogger), new MyExceptionLogger(requestLogger));
-                config.Services.Replace(typeof(IExceptionHandler), new MyExceptionHandler());
+                //config.Services.Replace(typeof(IExceptionHandler), new MyExceptionHandler());
                 config.MapHttpAttributeRoutes();
                 config.Routes.IgnoreRoute("StaticFiles", StaticFilesVirtualRoot + "/{*pathInfo}");
                 config.Routes.MapHttpRoute("Home", "", new {controller = "Home"});

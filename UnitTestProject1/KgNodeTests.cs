@@ -143,7 +143,7 @@ namespace UnitTestProject1
                 new AuthorNode(20, null),
                 new AffiliationNode(31, null),
             };
-            var comparer = new ArrayEqualityComparer<KgNode>(KgNodeEqualityComparer.Default);
+            var comparer = ArrayEqualityComparer<KgNode>.Default;
             Trace.WriteLine($"Array1 HashCode = {comparer.GetHashCode(array1)}");
             Trace.WriteLine($"Array2 HashCode = {comparer.GetHashCode(array2)}");
             Assert.AreEqual(comparer.GetHashCode(array1), comparer.GetHashCode(array2));

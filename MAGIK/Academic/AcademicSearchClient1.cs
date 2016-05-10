@@ -56,40 +56,45 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
                 var retries = 0;
                 RETRY:
                 var responseTask = request.GetResponseAsync();
-                var timeoutTask = Task.Delay(Timeout);
-                if (await Task.WhenAny(responseTask, timeoutTask) == timeoutTask)
+                using (var timeoutCancellation = new CancellationTokenSource(Timeout))
                 {
-                    if (!responseTask.IsCompleted)
+                    var timeoutTask = Task.Delay(Timeout, timeoutCancellation.Token);
+                    if (await Task.WhenAny(responseTask, timeoutTask) == timeoutTask)
                     {
-                        //To time out asynchronous requests, use the Abort method.
-                        try
+                        if (!responseTask.IsCompleted)
                         {
-                            request.Abort();
+                            //To time out asynchronous requests, use the Abort method.
+                            try
+                            {
+                                request.Abort();
+                            }
+                            catch (WebException ex)
+                            {
+                                Debug.Assert(ex.Status == WebExceptionStatus.RequestCanceled);
+                            }
+                            retries++;
+                            Logger.AcademicSearch.Warn(this, EventId.RequestTimeout,
+                                "Timeout(x{0}): {1}", retries, request.RequestUri);
+                            //timeoutTask.Dispose();
+                            if (retries > MaxRetries) throw new TimeoutException();
+                            // Before retry, copy the request.
+                            var newRequest = WebRequest.Create(request.RequestUri);
+                            newRequest.Method = request.Method;
+                            //newRequest.Timeout = request.Timeout; of no use.
+                            var hwr = request as HttpWebRequest;
+                            var nhwr = newRequest as HttpWebRequest;
+                            if (hwr != null)
+                            {
+                                Debug.Assert(nhwr != null);
+                                nhwr.UserAgent = hwr.UserAgent;
+                                nhwr.Referer = hwr.Referer;
+                            }
+                            request = newRequest;
+                            goto RETRY;
                         }
-                        catch (WebException ex)
-                        {
-                            Debug.Assert(ex.Status == WebExceptionStatus.RequestCanceled);
-                        }
-                        retries++;
-                        Logger.AcademicSearch.Warn(this, EventId.RequestTimeout,
-                            "Timeout(x{0}): {1}", retries, request.RequestUri);
-                        //timeoutTask.Dispose();
-                        if (retries > MaxRetries) throw new TimeoutException();
-                        // Before retry, copy the request.
-                        var newRequest = WebRequest.Create(request.RequestUri);
-                        newRequest.Method = request.Method;
-                        //newRequest.Timeout = request.Timeout; of no use.
-                        var hwr = request as HttpWebRequest;
-                        var nhwr = newRequest as HttpWebRequest;
-                        if (hwr != null)
-                        {
-                            Debug.Assert(nhwr != null);
-                            nhwr.UserAgent = hwr.UserAgent;
-                            nhwr.Referer = hwr.Referer;
-                        }
-                        request = newRequest;
-                        goto RETRY;
                     }
+                    // 请求正常完成。
+                    timeoutCancellation.Cancel();
                 }
                 // 这里使用 await 而不是 responseTask.Result 其实也是为了展开异常。
                 // 不然扔出来的很可能是 AggregateException 。
