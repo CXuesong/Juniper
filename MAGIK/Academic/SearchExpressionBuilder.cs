@@ -32,6 +32,11 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
         public const int MaxChainedAuIdCount = 50;
 
         /// <summary>
+        /// 最大允许的 And(Composite(AA.AfId=2026561929),) 并联数量。
+        /// </summary>
+        public const int MaxChainedAfIdCount = MaxChainedAuIdCount;
+
+        /// <summary>
         /// 最大允许的 And(FId=122026561929,) 并联数量。
         /// </summary>
         public const int MaxChainedFIdCount = 84;
@@ -58,7 +63,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
         /// 要求实体存在一个作者的 AuId 是给定集合中的一个 Id 。ids 数量不应当超过 50 。
         /// </summary>
         public static string AuthorIdIn(IEnumerable<long> ids)
-            => ChainExpressions(ids.Select(AuthorIdContains), "Or");
+            => ChainExpressions(ids.Select(id => AuthorIdContains(id)), "Or");
 
         public static string AffiliationIdContains(long id)
             => $"Composite(AA.AfId={id})";
@@ -66,8 +71,19 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
         /// <summary>
         /// 限定作者及其所在的机构。（而不是作者或机构。）
         /// </summary>
-        public static string AuthorIdWithAffiliationIdContains(long authorId, long affiliationId)
+        public static string AuthorIdContains(long authorId, long affiliationId)
             => $"Composite(And(AA.AuId={authorId},AA.AfId={affiliationId}))";
+
+        /// <summary>
+        /// 限定作者及其可能所在的机构列表。（而不是作者或机构。）
+        /// （机构与机构之间是 或 的关系。）
+        /// </summary>
+        public static string AuthorIdContains(long authorId, IEnumerable<long> affiliationIds)
+        {
+            var afexpr = ChainExpressions(affiliationIds.Select(id => "AA.AfId=" + id), "Or");
+            if (string.IsNullOrEmpty(afexpr)) throw new ArgumentException("机构列表为空。", nameof(affiliationIds));
+            return $"Composite(And(AA.AuId={authorId},{afexpr}))";
+        }
 
         public static string ConferenceIdEquals(long id)
             => $"Composite(C.CId={id})";
@@ -79,7 +95,11 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
             => $"Composite(F.FId={id})";
 
         public static string FieldOfStudyIdIn(IEnumerable<long> ids)
-            => ChainExpressions(ids.Select(FieldOfStudyIdContains), "Or");
+        {
+            var afexpr = ChainExpressions(ids.Select(id => "F.FId=" + id), "Or");
+            if (string.IsNullOrEmpty(afexpr)) throw new ArgumentException("FoS列表为空。", nameof(ids));
+            return $"Composite({afexpr}))";
+        }
 
         public static string EntityOrAuthorIdEquals(long id)
             => $"Or(Id={id},Composite(AA.AuId={id}))";

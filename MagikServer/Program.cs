@@ -12,6 +12,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Contests.Bop.Participants.Magik.Analysis;
 using Microsoft.Owin.Hosting;
+using Newtonsoft.Json;
 
 namespace Microsoft.Contests.Bop.Participants.Magik.MagikServer
 {
@@ -22,8 +23,9 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikServer
     {
         static void Main(string[] args)
         {
-            //EnableProfiling();
+            EnableProfiling();
             //ForceJit(typeof (Analyzer).Assembly);
+            //ForceJit(typeof (JsonConverter).Assembly);
             Console.WriteLine(Utility.ProductName);
             Console.WriteLine(Utility.ApplicationTitle + " " + Utility.ProductVersion);
             Configurations.PrintConfigurations();
@@ -66,28 +68,29 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikServer
         private static void ForceJit(Assembly assembly)
         {
             var types = assembly.GetTypes();
-            foreach (var type in types)
-            {
-                var ctors = type.GetConstructors(BindingFlags.NonPublic
-                                            | BindingFlags.Public
-                                            | BindingFlags.Instance
-                                            | BindingFlags.Static);
-                foreach (var ctor in ctors) JitMethod(assembly, ctor);
-                var methods = type.GetMethods(BindingFlags.DeclaredOnly
-                                       | BindingFlags.NonPublic
-                                       | BindingFlags.Public
-                                       | BindingFlags.Instance
-                                       | BindingFlags.Static);
-                foreach (var method in methods) JitMethod(assembly, method);
-            }
+            foreach (var t in types)
+                ForceJit(t);
         }
 
-        private static void JitMethod(Assembly assembly, MethodBase method)
+        private static void ForceJit(Type type)
+        {
+            var ctors = type.GetConstructors(BindingFlags.NonPublic
+                                        | BindingFlags.Public
+                                        | BindingFlags.Instance
+                                        | BindingFlags.Static);
+            foreach (var ctor in ctors) JitMethod(ctor);
+            var methods = type.GetMethods(BindingFlags.DeclaredOnly
+                                    | BindingFlags.NonPublic
+                                    | BindingFlags.Public
+                                    | BindingFlags.Instance
+                                    | BindingFlags.Static);
+            foreach (var method in methods) JitMethod(method);
+        }
+
+        private static void JitMethod(MethodBase method)
         {
             if (method.IsAbstract || method.ContainsGenericParameters)
-            {
                 return;
-            }
             RuntimeHelpers.PrepareMethod(method.MethodHandle);
         }
     }

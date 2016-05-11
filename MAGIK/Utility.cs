@@ -96,8 +96,16 @@ namespace Microsoft.Contests.Bop.Participants.Magik
         /// </summary>
         public static bool IsDistinct<T>(this IEnumerable<T> source)
         {
+            return IsDistinct<T>(source, null);
+        }
+
+        /// <summary>
+        /// 使用指定的相等比较器，判断指定列表中的元素是否非重复。
+        /// </summary>
+        public static bool IsDistinct<T>(this IEnumerable<T> source, IEqualityComparer<T> comparer)
+        {
             if (source == null) throw new ArgumentNullException(nameof(source));
-            var set = new HashSet<T>();
+            var set = new HashSet<T>(comparer);
             return source.All(item => set.Add(item));
         }
     }

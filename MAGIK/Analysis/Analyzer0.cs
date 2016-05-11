@@ -187,7 +187,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                         // 在这里就可以发现了。
                         RegisterNode(paper);
                         var localExploreTask = LocalExploreAsync(paper);
-                        // 为作者 AA.AuId1 注册所有可能的机构。
+                        // 为检索结果里的所有作者注册所有可能的机构。
                         // 这里比较麻烦，因为一个作者可以属于多个机构，所以
                         // 不能使用 LocalExploreAsync （会认为已经探索过。）
                         // 而需要手动建立节点关系。
@@ -213,6 +213,59 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             var waitResult = await Task.WhenAll(authorNodes.Select(n =>
                 GetStatus(n.Id).UntilExploredAsync(NodeStatus.AuthorPapersExploration)));
             Debug.Assert(waitResult.All(r => r));
+        }
+
+        /// <summary>
+        /// 探索作者与指定机构 Id 列表之间的关系。
+        /// 此操作已进行优化，仅用于探索作者与机构之间的关系。
+        /// </summary>
+        private async Task ExploreAuthorInAffiliations(long authorId, IEnumerable<long> affiliationIds)
+        {
+            var afidEnumerator = affiliationIds.GetEnumerator();
+            var currentAfIds = new HashSet<long>();
+            Action FeedAffiliationIds = () =>
+            {
+                while (currentAfIds.Count < SEB.MaxChainedAfIdCount
+                       && afidEnumerator.MoveNext())
+                {
+                    // 我们只探索有必要探索的边。
+                    if (!graph.Contains(authorId, afidEnumerator.Current))
+                        currentAfIds.Add(afidEnumerator.Current);
+                }
+            };
+            FeedAffiliationIds();
+            while (currentAfIds.Count > 0)
+            {
+                var er = await SearchClient.EvaluateAsync(SEB.AuthorIdContains(authorId, currentAfIds), 10, 0);
+                // 作者不属于 ids 中的任何一个机构。那就换一波吧。
+                if (er.Entities.Count == 0) currentAfIds.Clear();
+                // 包含结果。把这些机构排除掉。
+                // 顺便把搜到的论文小探索一下。
+                foreach (var et in er.Entities)
+                {
+                    // （也许）此处还可以注册 paper 与其所有作者之间的关系。
+                    // （就像 ExploreAuthorsPapersAsync 中的相关代码一样。）
+                    var paper = new PaperNode(et);
+                    //RegisterNode(paper);
+                    //var localExplorationTask = LocalExploreAsync(paper);
+                    foreach(var au in et.Authors)
+                    {
+                        if (au.AffiliationId != null)
+                        {
+                            // 为检索结果里的所有作者注册所有可能的机构。
+                            // 这里比较麻烦，因为一个作者可以属于多个机构，所以
+                            // 不能使用 LocalExploreAsync （会认为已经探索过。）
+                            // 而需要手动建立节点关系。
+                            RegisterNode(new AffiliationNode(au));
+                            RegisterEdge(authorId, au.AffiliationId.Value, true);
+                            currentAfIds.Remove(au.AffiliationId.Value);
+                        }
+                    }
+                    //await localExplorationTask;
+                }
+                // 然后看看还有没有其他的机构来探索一下。
+                FeedAffiliationIds();
+            }
         }
 
         /// <summary>
@@ -437,23 +490,9 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                     // AA.AfId <-> AA.AuId <-> Id
                     // 注意，要确认 AuId 是否位于 nodes1 列表中。
                     // 这里的 AuId 是 Id2 论文的作者列表。
-                    await Task.WhenAll((from aff in affiliations1
-                        from au in graph.AdjacentOutVertices(node2.Id)
-                            .Select(id => nodes[id]).OfType<AuthorNode>()
-                        select new
-                        {
-                            AuthorId = au.Id,
-                            AffiliationId = aff.Id
-                        })
-                        .Select(async pair =>
-                        {
-                            if (graph.Contains(pair.AuthorId, pair.AffiliationId)) return;
-                            if (await SearchClient.EvaluationHasResultAsync(SEB.AuthorIdWithAffiliationIdContains(
-                                pair.AuthorId, pair.AffiliationId)))
-                            {
-                                RegisterEdge(pair.AuthorId, pair.AffiliationId, true);
-                            }
-                        }));
+                    await Task.WhenAll(graph.AdjacentOutVertices(node2.Id)
+                        .Where(id => nodes[id] is AuthorNode)
+                        .Select(id => ExploreAuthorInAffiliations(id, affiliations1.Select(af => af.Id))));
                 }
                 else if (foss1 != null)
                 {
@@ -510,29 +549,17 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                 else if (authors1 != null)
                 {
                     // AA.AuId1 <-> Id3 <-> AA.AuId2
-                    //var author1 = (AuthorNode)node1;
                     // 探索 AA.AuId1 的所有论文。此处的探索还可以顺便确定 AuId1 的所有组织。
                     // 注意到每个作者都会写很多论文
                     // 不论如何，现在尝试从 Id1 向 Id2 探索。
                     // 我们需要列出 Id1 的所有文献，以获得其曾经位于的所有组织。
                     await ExploreAuthorsPapersAsync(authors1);
                     // AA.AuId1 <-> AA.AfId3 <-> AA.AuId2
-                    var author2in = graph.AdjacentInVertices(node2.Id);
-                    foreach (var afid in authors1
+                    // AA.AuId1 <-> AA.AfId3 已经在前面探索完毕。
+                    // 只需探索 AA.AfId3 <-> AA.AuId2 。
+                    await ExploreAuthorInAffiliations(node2.Id, authors1
                         .SelectMany(au1 => graph.AdjacentOutVertices(au1.Id)
-                            .Where(id2 => nodes[id2] is AffiliationNode)))
-                    {
-                        // 如果已知的 Author2 已经存在对此机构的联系，那么就不用上网去确认了。
-                        if (!author2in.Contains(afid))
-                        {
-                            if (await SearchClient.EvaluationHasResultAsync(
-                                SEB.AuthorIdWithAffiliationIdContains(node2.Id, afid)))
-                            {
-                                // AA.AfId3 <-> AA.AuId2
-                                RegisterEdge(node2.Id, afid, true);
-                            }
-                        }
-                    }
+                            .Where(id2 => nodes[id2] is AffiliationNode)));
                 }
                 else if (affiliations1 != null)
                 {

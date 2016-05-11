@@ -69,9 +69,8 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             var hops = await Task.WhenAll(
                 FindHop12PathsAsync(node1, node2),
                 FindHop3PathsAsync(node1, node2));
-            var result = hops.SelectMany(hop => hop)
-                .Distinct(ArrayEqualityComparer<KgNode>.Default)
-                .ToArray();
+            var result = hops.SelectMany(hop => hop).ToArray();
+            Debug.Assert(result.IsDistinct(ArrayEqualityComparer<KgNode>.Default));
             Logger.Magik.Success(this, "在 {0} - {1} 之间找到了 {2} 条路径。用时： {3} 。", node1, node2, result.Length, sw.Elapsed);
             Logger.Magik.Exit(this);
             return result;
