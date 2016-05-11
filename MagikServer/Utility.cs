@@ -30,8 +30,11 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikServer
             {
                 analyzer = new Analyzer(GlobalServices.CreateASClient());
                 analyzer.SearchClient.PagingSize = Configurations.ASClientPagingSize;
-                cachedAnalyzer = analyzer;
-                cachedAnalyzerCreationTime = DateTime.Now;
+                if (Configurations.AnalyzerCacheAllowed)
+                {
+                    cachedAnalyzer = analyzer;
+                    cachedAnalyzerCreationTime = DateTime.Now;
+                }
             }
             return analyzer;
         }
