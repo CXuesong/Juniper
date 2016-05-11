@@ -173,7 +173,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                     var idc = (ICollection<long>) ids;
                     var er = await SearchClient.EvaluateAsync(
                         SEB.AuthorIdIn(idc),
-                        Assumptions.AuthorMaxPapers * idc.Count);
+                        Assumptions.AuthorMaxPapers*idc.Count);
                     // 实际情况应当是， er.Entities.Count >> idc.Count
                     if (er.Entities.Count < idc.Count)
                         Logger.Magik.Warn(this, "批量查询实体 Id 时，返回结果数量不足。期望：>>{0}，实际：{1}。", idc.Count, er.Entities.Count);
@@ -280,7 +280,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         private Task ExploreInterceptionNodesAsync(IReadOnlyList<AuthorNode> nodes1, KgNode node2)
         {
             // 多个作者只能一个一个搜。反正一篇文章应该没几个作者……吧？
-            return Task.WhenAll(nodes1.Select(au => ExploreInterceptionNodesInternalAsync(new[] { au }, node2)));
+            return Task.WhenAll(nodes1.Select(au => ExploreInterceptionNodesInternalAsync(new[] {au}, node2)));
         }
 
         /// <summary>
@@ -288,7 +288,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         /// </summary>
         private Task ExploreInterceptionNodesAsync(KgNode node1, KgNode node2)
         {
-            return ExploreInterceptionNodesInternalAsync(new[] { node1 }, node2);
+            return ExploreInterceptionNodesInternalAsync(new[] {node1}, node2);
         }
 
         /// <summary>
@@ -300,7 +300,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         {
             if (nodes1 == null) throw new ArgumentNullException(nameof(nodes1));
             if (node2 == null) throw new ArgumentNullException(nameof(node2));
-            if (nodes1.Count == 0) return;     // Nothing to explore.
+            if (nodes1.Count == 0) return; // Nothing to explore.
             KgNode node1;
             var explore12DomainKey = new InterceptionExplorationDomainKey(node2.Id);
             // 注意， node1 和 node2 的方向是不能互换的，
@@ -319,7 +319,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             {
                 node1 = nodes1ToExplore[0];
                 if (node1 is PaperNode)
-                    papers1 = new[] { (PaperNode)node1 };
+                    papers1 = new[] {(PaperNode) node1};
                 else if (node1 is AuthorNode)
                     authors1 = new[] {(AuthorNode) node1};
                 else if (node1 is AffiliationNode)
@@ -361,14 +361,14 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             var paper2 = node2 as PaperNode;
             // searchConstraint : 建议尽量简短，因为 FromPapers1 的约束可能
             // 会是 100 个条件的并。
-            Func<string, Task> ExploreFromPapers1References = searchConstraint =>
+            Func<string, Task> exploreFromPapers1References = delegate(string searchConstraint)
             {
                 // 注意，我们是来做全局搜索的。像是 Id -> AuId -> Id
                 // 这种探索在局部探索阶段应该已经解决了。
                 Debug.Assert(papers1 != null);
                 var tasks = papers1.SelectMany(p1 => graph
                     .AdjacentOutVertices(p1.Id))
-                    .Distinct()     // 注意，参考文献(或是作者——尽管在这里不需要)很可能会重复。
+                    .Distinct() // 注意，参考文献(或是作者——尽管在这里不需要)很可能会重复。
                     .Where(id3 => nodes[id3] is PaperNode)
                     .Partition(SEB.MaxChainedIdCount)
                     .Select(async id3s =>
@@ -392,7 +392,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             };
             if (paper2 != null)
             {
-                // 带有 作者/会议/期刊 等属性限制，
+                // 带有 作者/研究领域/会议/期刊 等属性限制，
                 // 搜索 >引用< 中含有 paper2 的论文 Id。
                 // attributeConstraint 可以长一些。
                 Func<string, Task> ExploreCitationsToPaper2WithAttributes =
@@ -420,7 +420,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                 if (papers1 != null)
                 {
                     // Id1 -> Id3 -> Id2
-                    await ExploreFromPapers1References(SEB.ReferenceIdContains(paper2.Id));
+                    await exploreFromPapers1References(SEB.ReferenceIdContains(paper2.Id));
                 }
                 else if (authors1 != null)
                 {
@@ -462,21 +462,44 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                 }
                 else if (node1 is ConferenceNode)
                 {
-                    // F.FId <-> Id -> Id
+                    // C.CId <-> Id -> Id
                     await ExploreCitationsToPaper2WithAttributes(SEB.ConferenceIdEquals(node1.Id));
                 }
                 else if (node1 is JournalNode)
                 {
-                    // F.FId <-> Id -> Id
+                    // J.JId <-> Id -> Id
                     await ExploreCitationsToPaper2WithAttributes(SEB.JournalIdEquals(node1.Id));
                 }
+                else
+                {
+                    Debug.WriteLine("Ignoreed: {0}-{1}", nodes1ToExplore[0], node2);
+                }
             }
-            else if (node2 is AuthorNode)
+            else
             {
+                Debug.Assert(node2 is AuthorNode);
+                // 带有 研究领域/会议/期刊 等属性限制，
+                // 搜索 author2 的论文 Id。
+                // attributeConstraint 可以长一些。
+                Func<string, Task> ExploreAuthor2PapersWithAttributes =
+                    async attributeConstraint =>
+                    {
+                        var er = await SearchClient.EvaluateAsync(SEB.And(
+                            attributeConstraint,
+                            SEB.AuthorIdContains(node2.Id)),
+                            Assumptions.AuthorMaxPapers);
+                        foreach (var et in er.Entities)
+                        {
+                            var node = new PaperNode(et);
+                            RegisterNode(node);
+                            // 假异步。
+                            await LocalExploreAsync(node);
+                        }
+                    };
                 if (papers1 != null)
                 {
                     // Id1 -> Id3 -> AA.AuId2
-                    await ExploreFromPapers1References(SEB.AuthorIdContains(node2.Id));
+                    await exploreFromPapers1References(SEB.AuthorIdContains(node2.Id));
                 }
                 else if (authors1 != null)
                 {
@@ -491,7 +514,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                     var author2in = graph.AdjacentInVertices(node2.Id);
                     foreach (var afid in authors1
                         .SelectMany(au1 => graph.AdjacentOutVertices(au1.Id)
-                        .Where(id2 =>nodes[id2] is AffiliationNode)))
+                            .Where(id2 => nodes[id2] is AffiliationNode)))
                     {
                         // 如果已知的 Author2 已经存在对此机构的联系，那么就不用上网去确认了。
                         if (!author2in.Contains(afid))
@@ -504,6 +527,32 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                             }
                         }
                     }
+                }
+                else if (affiliations1 != null)
+                {
+                    // 不可能和 Affiliations 扯上 2-hop 关系啦……
+                    // AA.AfId - ? - AA.AuId
+                }
+                else if (foss1 != null)
+                {
+                    // F.FId <-> Id <-> AA.AuId
+                    await Task.WhenAll(foss1.Select(fos => fos.Id)
+                        .Partition(SEB.MaxChainedFIdCount)
+                        .Select(fids => ExploreAuthor2PapersWithAttributes(SEB.FieldOfStudyIdIn(fids))));
+                }
+                else if (node1 is ConferenceNode)
+                {
+                    // C.CId <-> Id <-> AA.AuId
+                    await ExploreAuthor2PapersWithAttributes(SEB.ConferenceIdEquals(node1.Id));
+                }
+                else if (node1 is JournalNode)
+                {
+                    // J.JId <-> Id <-> AA.AuId
+                    await ExploreAuthor2PapersWithAttributes(SEB.JournalIdEquals(node1.Id));
+                }
+                else
+                {
+                    Debug.WriteLine("Ignoreed: {0}-{1}", nodes1ToExplore[0], node2);
                 }
             }
             // 标记探索完毕

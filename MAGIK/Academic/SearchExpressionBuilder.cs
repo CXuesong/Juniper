@@ -70,7 +70,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
             => $"Composite(And(AA.AuId={authorId},AA.AfId={affiliationId}))";
 
         public static string ConferenceIdEquals(long id)
-            => $"Composite(AA.AuId={id})";
+            => $"Composite(C.CId={id})";
 
         public static string JournalIdEquals(long id)
             => $"Composite(J.JId={id})";

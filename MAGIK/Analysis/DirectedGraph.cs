@@ -135,7 +135,8 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         /// </summary>
         public bool Contains(TVertex vertex1, TVertex vertex2)
         {
-            var ve1 = vertices[vertex1];
+            var ve1 = vertices.TryGetValue(vertex1);
+            if (ve1 == null) return false;
             ve1.SyncLock.EnterReadLock();
             try
             {
