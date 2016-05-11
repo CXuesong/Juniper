@@ -145,8 +145,9 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                 .Select(explore));
             WAIT_FOR_EXPLORATIONS:
             //确保返回前，所有 Exploring 的节点已经由此线程或其他线程处理完毕。
-            await Task.WhenAll(paperNodes.Select(n =>
+            var waitResult = await Task.WhenAll(paperNodes.Select(n =>
                 GetStatus(n.Id).UntilExploredAsync(NodeStatus.LocalExploration)));
+            Debug.Assert(waitResult.All(r => r));
         }
 
         /// <summary>
@@ -209,8 +210,9 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                 GetStatus(an.Id).MarkAsExplored(NodeStatus.AuthorPapersExploration);
             WAIT_FOR_EXPLORATIONS:
             //确保返回前，所有 Exploring 的节点已经由此线程或其他线程处理完毕。
-            await Task.WhenAll(authorNodes.Select(n =>
+            var waitResult = await Task.WhenAll(authorNodes.Select(n =>
                 GetStatus(n.Id).UntilExploredAsync(NodeStatus.AuthorPapersExploration)));
+            Debug.Assert(waitResult.All(r => r));
         }
 
         /// <summary>
@@ -481,9 +483,13 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                 // 带有 研究领域/会议/期刊 等属性限制，
                 // 搜索 author2 的论文 Id。
                 // attributeConstraint 可以长一些。
-                Func<string, Task> ExploreAuthor2PapersWithAttributes =
+                Func<string, Task> ExplorePapersOfAuthor2WithAttributes =
                     async attributeConstraint =>
                     {
+                        // 如果作者的所有论文已经被探索过了，
+                        // 那么很幸运，不需要再探索了。
+                        if (await GetStatus(node2.Id).UntilExploredAsync(NodeStatus.AuthorPapersExploration))
+                            return;
                         var er = await SearchClient.EvaluateAsync(SEB.And(
                             attributeConstraint,
                             SEB.AuthorIdContains(node2.Id)),
@@ -538,17 +544,17 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                     // F.FId <-> Id <-> AA.AuId
                     await Task.WhenAll(foss1.Select(fos => fos.Id)
                         .Partition(SEB.MaxChainedFIdCount)
-                        .Select(fids => ExploreAuthor2PapersWithAttributes(SEB.FieldOfStudyIdIn(fids))));
+                        .Select(fids => ExplorePapersOfAuthor2WithAttributes(SEB.FieldOfStudyIdIn(fids))));
                 }
                 else if (node1 is ConferenceNode)
                 {
                     // C.CId <-> Id <-> AA.AuId
-                    await ExploreAuthor2PapersWithAttributes(SEB.ConferenceIdEquals(node1.Id));
+                    await ExplorePapersOfAuthor2WithAttributes(SEB.ConferenceIdEquals(node1.Id));
                 }
                 else if (node1 is JournalNode)
                 {
                     // J.JId <-> Id <-> AA.AuId
-                    await ExploreAuthor2PapersWithAttributes(SEB.JournalIdEquals(node1.Id));
+                    await ExplorePapersOfAuthor2WithAttributes(SEB.JournalIdEquals(node1.Id));
                 }
                 else
                 {
@@ -560,7 +566,9 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                 GetStatus(n.Id).MarkAsExplored(explore12DomainKey);
             // 等待其他线程（如果有）
             WAIT_FOR_EXPLORATIONS:
-            await Task.WhenAll(nodes1.Select(n => GetStatus(n.Id).UntilExploredAsync(explore12DomainKey)));
+            var waitResult =
+                await Task.WhenAll(nodes1.Select(n => GetStatus(n.Id).UntilExploredAsync(explore12DomainKey)));
+            Debug.Assert(waitResult.All(r => r));
         }
     }
 }

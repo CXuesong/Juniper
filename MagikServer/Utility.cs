@@ -25,12 +25,11 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikServer
             // TODO 检查线程安全性。
             var analyzer = cachedAnalyzer;
             if (cachedAnalyzer == null 
-                || !Configurations.AnalyzerCacheAllowed
-                || DateTime.Now - cachedAnalyzerCreationTime > TimeSpan.FromMinutes(30))
+                || DateTime.Now - cachedAnalyzerCreationTime > Configurations.AnalyzerCacheTimeout)
             {
                 analyzer = new Analyzer(GlobalServices.CreateASClient());
                 analyzer.SearchClient.PagingSize = Configurations.ASClientPagingSize;
-                if (Configurations.AnalyzerCacheAllowed)
+                if (Configurations.AnalyzerCacheTimeout.Ticks > 0)
                 {
                     cachedAnalyzer = analyzer;
                     cachedAnalyzerCreationTime = DateTime.Now;

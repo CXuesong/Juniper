@@ -26,6 +26,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikServer
             //ForceJit(typeof (Analyzer).Assembly);
             Console.WriteLine(Utility.ProductName);
             Console.WriteLine(Utility.ApplicationTitle + " " + Utility.ProductVersion);
+            Configurations.PrintConfigurations();
             var options = new StartOptions();
             foreach (var ba in Configurations.BaseAddresses) options.Urls.Add(ba);
             // Start OWIN host 

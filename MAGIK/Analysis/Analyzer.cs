@@ -140,6 +140,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             // 在 RELEASE 模式下，完全信息仅包括节点的邻节点。
             private Dictionary<ExplorationDomainKey, ExplorationStatus> explorationStatusDict 
                 = new Dictionary<ExplorationDomainKey, ExplorationStatus>();
+            // 约定：在任务结束后，TaskCompletionSource 应当返回 true 。
             private Dictionary<ExplorationDomainKey, TaskCompletionSource<bool>> explorationTaskCompletionSourceDict
                 = new Dictionary<ExplorationDomainKey, TaskCompletionSource<bool>>();
             private ReaderWriterLockSlim syncLock = new ReaderWriterLockSlim();
@@ -216,7 +217,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                             case ExplorationStatus.Exploring:
                                 // Wait for exploration
                                 var tcs = explorationTaskCompletionSourceDict.GetOrAddNew(domainKey);
-                                return tcs.Task;
+                                return tcs.Task.ContinueWith(r => false);
                         }
                     }
                     explorationStatusDict[domainKey] = ExplorationStatus.Exploring;
@@ -229,13 +230,15 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             }
 
             /// <summary>
-            /// 等待直到节点处于 <see cref="ExplorationStatus.Explored" /> 状态。
+            /// 如果当前节点处于 <see cref="ExplorationStatus.Exploring"/> 状态，
+            /// 则等待直到节点处于 <see cref="ExplorationStatus.Explored" /> 状态。
             /// </summary>
-            /// <param name="domainKey"></param>
             /// <returns>
-            /// 任务会在（其他线程）探索结束后返回。
+            /// 返回一个任务。如果当前节点处于 <see cref="ExplorationStatus.Unexplored"/>
+            /// 状态，则直接返回 false 。
+            /// 否则会在（其他线程）探索结束后返回 <c>true</c>。
             /// </returns>
-            public Task UntilExploredAsync(ExplorationDomainKey domainKey)
+            public Task<bool> UntilExploredAsync(ExplorationDomainKey domainKey)
             {
                 if (domainKey == null) throw new ArgumentNullException(nameof(domainKey));
                 syncLock.EnterWriteLock();
@@ -244,14 +247,20 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                     ExplorationStatus s;
                     if (explorationStatusDict.TryGetValue(domainKey, out s))
                     {
-                        if (s == ExplorationStatus.Explored)
-                            return Task.CompletedTask;
+                        switch (s)
+                        {
+                            case ExplorationStatus.Exploring:
+                                // Wait for exploration
+                                var tcs = explorationTaskCompletionSourceDict.GetOrAddNew(domainKey);
+                                return tcs.Task.ContinueWith(r => true);
+                            case ExplorationStatus.Explored:
+                                return Task.FromResult(true);
+                            default:
+                                return Task.FromResult(false);
+                        }
                     }
-                    // Wait for exploration
-                    Debug.Assert(s == ExplorationStatus.Exploring,
-                        "试图等待一个处于 Unexplored 状态的节点。在当前实现中，此情况不应发生。");
-                    var tcs = explorationTaskCompletionSourceDict.GetOrAddNew(domainKey);
-                    return tcs.Task;
+                    Debug.Assert(s == ExplorationStatus.Unexplored);
+                    return Task.FromResult(false);
                 }
                 finally
                 {
@@ -276,8 +285,9 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                     var tcs = explorationTaskCompletionSourceDict.TryGetValue(domainKey);
                     if (tcs != null)
                     {
-                        // 为什么是 false ？ 参阅 MarkAsExploringOrUntilExplored 的返回值。
-                        tcs.SetResult(false);
+                        // 为什么是 true ？ 
+                        // 参阅 explorationTaskCompletionSourceDict 声明处的约定。
+                        tcs.SetResult(true);
                         explorationTaskCompletionSourceDict.Remove(domainKey);
                     }
                 }

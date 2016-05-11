@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Configuration;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -25,7 +26,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikServer
         /// <summary>
         /// 是否允许在请求之间缓存网络图。
         /// </summary>
-        public static bool AnalyzerCacheAllowed { get; }
+        public static TimeSpan AnalyzerCacheTimeout { get; }
 
         private static int ToInt32(this string expression)
         {
@@ -37,6 +38,22 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikServer
             return Convert.ToBoolean(expression);
         }
 
+        private static TimeSpan ToTimeSpan(this string expression)
+        {
+            return TimeSpan.Parse(expression);
+        }
+
+        /// <summary>
+        /// 向控制台输出当前的设置。
+        /// </summary>
+        public static void PrintConfigurations()
+        {
+            foreach (var p in typeof(Configurations).GetProperties(BindingFlags.Static | BindingFlags.Public))
+            {
+                Console.WriteLine("{0,40} = {1}", p.Name, p.GetValue(null));
+            }
+        }
+
         static Configurations()
         {
             var config = ConfigurationManager.AppSettings;
@@ -44,8 +61,8 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikServer
                             ?? new[] {"http://localhost:9000/"};
             ASClientPagingSize = config["ASClient.PagingSize"]?.ToInt32()
                                  ?? 1000;
-            AnalyzerCacheAllowed = config["Analyzer.CacheAllowed"]?.ToBoolean()
-                                   ?? false;
+            AnalyzerCacheTimeout = config["Analyzer.CacheTimeout"]?.ToTimeSpan()
+                                   ?? TimeSpan.Zero;
         }
     }
 }

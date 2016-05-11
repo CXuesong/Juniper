@@ -27,7 +27,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik
         /// <remarks>
         /// 请在 <see cref="InitializeConfidential" /> 的实现中设置此属性。
         /// </remarks>
-        public static bool ASReleaseMode { get; private set; }
+        public static bool ASUseCompactQuery { get; private set; }
 #if DEBUG
             = false;
 #else
@@ -65,7 +65,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik
         {
             var client = new AcademicSearchClient(AcademicSearchSubscriptionKey)
             {
-                EvaluationDefaultAttributes = ASReleaseMode ? ReleaseASEvaluationAttributes: DebugASEvaluationAttributes,
+                EvaluationDefaultAttributes = ASUseCompactQuery ? ReleaseASEvaluationAttributes: DebugASEvaluationAttributes,
                 UserAgent = "MAGIK/1.0 (Windows)",
                 Referer = "https://studentclub.msra.cn/bop2016/"
             };
