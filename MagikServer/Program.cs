@@ -2,10 +2,15 @@
 using System.Collections.Generic;
 using System.Configuration;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Reflection;
+using System.Runtime;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
+using Microsoft.Contests.Bop.Participants.Magik.Analysis;
 using Microsoft.Owin.Hosting;
 
 namespace Microsoft.Contests.Bop.Participants.Magik.MagikServer
@@ -17,6 +22,10 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikServer
     {
         static void Main(string[] args)
         {
+            //EnableProfiling();
+            //ForceJit(typeof (Analyzer).Assembly);
+            Console.WriteLine(Utility.ProductName);
+            Console.WriteLine(Utility.ApplicationTitle + " " + Utility.ProductVersion);
             var options = new StartOptions();
             foreach (var ba in Configurations.BaseAddresses) options.Urls.Add(ba);
             // Start OWIN host 
@@ -36,5 +45,49 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikServer
             }
         }
 
+        /// <summary>
+        /// 为应用程序启用 Multicore JIT 编译优化。
+        /// </summary>
+        private static void EnableProfiling()
+        {
+            var location = Assembly.GetExecutingAssembly().Location;
+            location = Path.GetDirectoryName(location);
+            ProfileOptimization.SetProfileRoot(location);
+            // 读取/覆盖 Profile 。
+            ProfileOptimization.StartProfile("MagikServer.Startup.Profile");
+        }
+
+        /// <summary>
+        /// 确保程序集中的函数已经被 JIT 编译。
+        /// https://blogs.msdn.microsoft.com/abhinaba/2014/09/29/net-just-in-time-compilation-and-warming-up-your-system/
+        /// </summary>
+        /// <param name="assembly"></param>
+        private static void ForceJit(Assembly assembly)
+        {
+            var types = assembly.GetTypes();
+            foreach (var type in types)
+            {
+                var ctors = type.GetConstructors(BindingFlags.NonPublic
+                                            | BindingFlags.Public
+                                            | BindingFlags.Instance
+                                            | BindingFlags.Static);
+                foreach (var ctor in ctors) JitMethod(assembly, ctor);
+                var methods = type.GetMethods(BindingFlags.DeclaredOnly
+                                       | BindingFlags.NonPublic
+                                       | BindingFlags.Public
+                                       | BindingFlags.Instance
+                                       | BindingFlags.Static);
+                foreach (var method in methods) JitMethod(assembly, method);
+            }
+        }
+
+        private static void JitMethod(Assembly assembly, MethodBase method)
+        {
+            if (method.IsAbstract || method.ContainsGenericParameters)
+            {
+                return;
+            }
+            RuntimeHelpers.PrepareMethod(method.MethodHandle);
+        }
     }
 }

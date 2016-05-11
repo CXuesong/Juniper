@@ -27,6 +27,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
 
         // The subscription key name
         private const string _subscriptionKeyName = "Ocp-Apim-Subscription-Key";
+
         private string _subscriptionKey;
 
         private int _PagingSize = 1000;

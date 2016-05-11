@@ -39,10 +39,17 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
 {
     partial class AcademicSearchClient
     {
-        /// <summary>
-        /// The default resolver
-        /// </summary>
-        private CamelCasePropertyNamesContractResolver _defaultResolver = new CamelCasePropertyNamesContractResolver();
+        // 我们假定这两个类型是线程安全的。
+        // http://stackoverflow.com/questions/36186276/is-the-json-net-jsonserializer-threadsafe
+        private static readonly JsonSerializerSettings jsonSerializerSettings =
+            new JsonSerializerSettings
+            {
+                DateFormatHandling = DateFormatHandling.IsoDateFormat,
+                NullValueHandling = NullValueHandling.Ignore,
+                ContractResolver = new CamelCasePropertyNamesContractResolver()
+            };
+        private static readonly JsonSerializer jsonSerializer =
+            JsonSerializer.CreateDefault(jsonSerializerSettings);
 
         #region the json client
 
@@ -130,18 +137,10 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
                         {
                             if (stream != null)
                             {
-                                var message = string.Empty;
                                 using (var reader = new StreamReader(stream))
                                 {
-                                    message = reader.ReadToEnd();
+                                    return (T) jsonSerializer.Deserialize(reader, typeof (T));
                                 }
-                                var settings = new JsonSerializerSettings
-                                {
-                                    DateFormatHandling = DateFormatHandling.IsoDateFormat,
-                                    NullValueHandling = NullValueHandling.Ignore,
-                                    ContractResolver = _defaultResolver
-                                };
-                                return JsonConvert.DeserializeObject<T>(message, settings);
                             }
                         }
                     }
@@ -166,16 +165,12 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
                     stream = webException.Response.GetResponseStream();
                     if (stream != null)
                     {
-                        string errorObjectString;
                         using (var reader = new StreamReader(stream))
                         {
-                            stream = null;
-                            errorObjectString = reader.ReadToEnd();
-                        }
-                        var errorCollection = JsonConvert.DeserializeObject<ClientErrorContainer>(errorObjectString);
-                        if (errorCollection != null)
-                        {
-                            throw new ClientException(errorCollection.Error);
+                            var errorCollection = (ClientErrorContainer)
+                                jsonSerializer.Deserialize(reader, typeof(ClientErrorContainer));
+                            if (errorCollection != null)
+                                throw new ClientException(errorCollection.Error);
                         }
                     }
                 }
