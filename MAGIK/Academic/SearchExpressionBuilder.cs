@@ -97,8 +97,8 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
         public static string FieldOfStudyIdIn(IEnumerable<long> ids)
         {
             var afexpr = ChainExpressions(ids.Select(id => "F.FId=" + id), "Or");
-            if (string.IsNullOrEmpty(afexpr)) throw new ArgumentException("FoS列表为空。", nameof(ids));
-            return $"Composite({afexpr}))";
+            if (string.IsNullOrEmpty(afexpr)) throw new ArgumentException("研究领域列表为空。", nameof(ids));
+            return $"Composite({afexpr})";
         }
 
         public static string EntityOrAuthorIdEquals(long id)
