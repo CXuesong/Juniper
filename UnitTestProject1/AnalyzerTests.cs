@@ -292,7 +292,7 @@ namespace UnitTestProject1
             // [AuthorNode:2251253715] Raquel Pau
             // [PaperNode:2180737804] Cloudmdsql Querying Heterogeneous Cloud Data Stores With A Common Language
             var paths = FindPaths(2251253715, 2180737804, true);
-            Assert.AreEqual(14, paths.Count);
+            AssertPathsCount(paths, 14);
         }
 
         /// <summary>
@@ -304,7 +304,7 @@ namespace UnitTestProject1
             // [PaperNode:2147152072] Indexing By Latent Semantic Analysis
             // [PaperNode:189831743] Preparing For The Use Of Classification In Online Cataloging Systems And In Online Catalogs
             var paths = FindPaths(2147152072, 189831743, true);
-            Assert.AreEqual(18, paths.Count);
+            AssertPathsCount(paths, 18);
         }
 
         /// <summary>
@@ -316,7 +316,32 @@ namespace UnitTestProject1
             // [PaperNode:2332023333] Recovering Transparent Shape From Time Of Flight Distortion
             // [PaperNode:2310280492] A Robust Multilinear Model Learning Framework For 3D Faces
             var paths = FindPaths(2332023333, 2310280492, true);
-            Assert.AreEqual(1, paths.Count);
+            AssertPathsCount(paths, 1);
+        }
+
+        /// <summary>
+        /// BOP 5-11 放出的样例4。
+        /// </summary>
+        [TestMethod]
+        public void AnalyzerTestBop4()
+        {
+            // [PaperNode:2332023333] Recovering Transparent Shape From Time Of Flight Distortion
+            // [AuthorNode:57898110] Timo Bolkart
+            var paths = FindPaths(2332023333, 57898110, true);
+            AssertPathExists(paths, 2332023333, 1158167855, 2310280492, 57898110);
+            AssertPathsCount(paths, 1);
+        }
+
+        /// <summary>
+        /// BOP 5-11 放出的样例5。
+        /// </summary>
+        [TestMethod]
+        public void AnalyzerTestBop5()
+        {
+            // [AuthorNode:57898110] Timo Bolkart
+            // [AuthorNode:2014261844] Stefanie Wuhrer
+            var paths = FindPaths(57898110, 2014261844, true);
+            AssertPathsCount(paths, 26);
         }
     }
 }
