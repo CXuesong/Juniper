@@ -235,14 +235,13 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         {
             var er = await asClient.EvaluateAsync(
                 SearchExpressionBuilder.AuthorIdContains(Id),
-                Assumptions.AuthorMaxPapers);
-            if (er.Entities.Count == 0) return EmptyPapers;
+                Assumptions.AuthorMaxPapers,
+                page => Task.FromResult(page.Entities.Select(et => new PaperNode(et))));
+            if (er.Count == 0) return EmptyPapers;
             // 啊哈！我们应当注意到，一个作者可以分属不同的机构。
             // 另外，也许我们可以充分利用搜索结果，因为在搜索结果里面也包含了和
             //      这个作者协作的其他作者的机构信息。
-            return er.Entities
-                .Select(et => new PaperNode(et))
-                .ToArray();
+            return er.SelectMany(page => page).ToArray();
         }
 
         /// <summary>

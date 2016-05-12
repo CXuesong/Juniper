@@ -151,39 +151,61 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
             var request = WebRequest.Create(requestUrl);
             InitializeRequest(request, "GET");
             var result = await SendAsync<EvaluationResult>(request);
-            Logger.AcademicSearch.Exit(this, $"{expression}; {result?.Entities?.Count} Entity");
+            Logger.AcademicSearch.Exit(this, $"{expression}; {result?.Entities?.Count} Entities");
             return result;
         }
 
         /// <summary>
         /// 异步计算查询表达式，并进行学术文献的检索。启用自动分页。
         /// </summary>
-        public Task<EvaluationResult> EvaluateAsync(string expression, int count)
+        public Task<ICollection<T>> EvaluateAsync<T>(string expression, int count, Func<EvaluationResult, Task<T>> callback)
         {
-            return EvaluateAsync(expression, count, null, null);
+            return EvaluateAsync<T>(expression, count, null, null, callback);
         }
 
         /// <summary>
         /// 异步计算查询表达式，并进行学术文献的检索。启用自动分页。
         /// </summary>
-        public Task<EvaluationResult> EvaluateAsync(string expression, int count, string attributes)
+        public Task<ICollection<T>> EvaluateAsync<T>(string expression, int count, string attributes, Func<EvaluationResult, Task<T>> callback)
         {
-            return EvaluateAsync(expression, count, null, attributes);
+            return EvaluateAsync<T>(expression, count, null, attributes, callback);
         }
 
         /// <summary>
         /// 异步计算查询表达式，并进行学术文献的检索。启用自动分页。
         /// </summary>
-        public async Task<EvaluationResult> EvaluateAsync(string expression, int count, string orderBy, string attributes)
+        public async Task<ICollection<T>> EvaluateAsync<T>(string expression, int count, string orderBy, string attributes, Func<EvaluationResult, Task<T>> callback)
         {
-            if (count < PagingSize) return await EvaluateAsync(expression, count, 0, orderBy, attributes);
+            if (count < PagingSize)
+            {
+                var er = await EvaluateAsync(expression, count, 0, orderBy, attributes);
+                if (er.Entities.Count > 0) await callback(er);
+            }
 #if TRACE
             Logger.AcademicSearch.Enter(this, $"{expression}, [1,{count}] Paged");
 #endif
-            var results = new List<Entity>();
-            bool noMoreResults = false;
-            for (var offset = 0; offset < count; )
+            var noMoreResults = false;
+            int results = 0;
+            var callbackResults = new List<T>(Math.Min(count/PagingSize + 1, 256));
+            EvaluationResult[] pages = null;
+            var offset = 0;
+            while (true)
             {
+// sessions
+                Task<T[]> callbackTask = null;
+                // 如果有回调，先执行回调。
+                if (pages != null)
+                {
+                    callbackTask = Task.WhenAll(pages.Where(er => er.Entities.Count > 0).Select(callback));
+                    // 已经不需要再下载页面了。
+                    // 等待前一页的回调函数返回。
+                    if (noMoreResults || offset >= count)
+                    {
+                        callbackResults.AddRange(await callbackTask);
+                        break;
+                    }
+                }
+                // 顺便下载页面。
                 var sessionPages = Math.Min((count - offset)/PagingSize, ConcurrentPagingCount);
                 if (sessionPages == 0)
                 {
@@ -191,26 +213,27 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
                     // 多读一页应该不会有问题吧。
                     sessionPages = 1;
                 }
-                var offset1 = offset;       // Access to modified closure.
-                var result = await Task.WhenAll(Enumerable.Range(0, sessionPages).Select(i =>
+                var offset1 = offset; // Access to modified closure.
+                // 开始下载页面。
+                pages = await Task.WhenAll(Enumerable.Range(0, sessionPages).Select(i =>
                     EvaluateAsync(expression, PagingSize, offset1 + i*PagingSize, orderBy, attributes)));
-                results.AddRange(result.SelectMany(er => er.Entities));
-                if (result.Any(er => er.Entities.Count < PagingSize))
+                foreach (var page in pages)
                 {
-                    // No more results.
-                    noMoreResults = true;
-                    break;
+                    // 当前 session 已经包含最后一页了。
+                    // 做个标记，然后交给下一次循环来处理。
+                    if (page.Entities.Count < PagingSize)
+                        noMoreResults = true;
+                    results += page.Entities.Count;
                 }
                 offset += sessionPages*PagingSize;
+                // 等待前一页的回调函数返回。
+                if (callbackTask != null)
+                    callbackResults.AddRange(await callbackTask);
             }
 #if TRACE
-            Logger.AcademicSearch.Exit(this, $"{expression}; {results.Count} Entity in total. {(noMoreResults ? "" : " Truncated.")}");
+            Logger.AcademicSearch.Exit(this, $"{expression}; {results} Entities in total. {(noMoreResults ? "" : " Truncated.")}");
 #endif
-            return new EvaluationResult
-            {
-                Expression = expression,
-                Entities = results
-            };
+            return callbackResults;
         }
 
         /// <summary>

@@ -16,7 +16,6 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
 {
     partial class Analyzer
     {
-
         /// <summary>
         /// 获取指定 Id 的节点状态。如果指定的 Id 目前不存在状态，则会新建一个。
         /// </summary>
@@ -32,29 +31,30 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         /// <returns>
         /// 如果此节点已经被注册，且与 node 不同，则返回 <c>false</c> 。
         /// </returns>
-        private bool RegisterNode(KgNode node)
+        private void RegisterNode(KgNode node)
         {
             if (node == null) throw new ArgumentNullException(nameof(node));
+#if DEBUG
             var factoryCalled = false;
             var nn = nodes.GetOrAdd(node.Id, id =>
             {
                 factoryCalled = true;
                 return node;
             });
-            if (factoryCalled)
-            {
-                Debug.Assert(nn == node);
-                graph.Add(node.Id);
-                return true;
-            }
-            else
+            graph.Add(node.Id);
+            if (!factoryCalled)
             {
                 // 此节点已经被发现
                 // 断言节点类型。
                 if (nn.GetType() != node.GetType())
-                    Logger.Magik.Warn(this, "试图注册的节点{0}与已注册的节点{1}具有不同的类型。", node, nn);
-                return false;
+                    Debug.Fail(string.Format("试图注册的节点{0}与已注册的节点{1}具有不同的类型。", node, nn));
             }
+#else
+            var factoryCalled = false;
+            // 性能关键，不要构造复杂的工厂函数。
+            nodes.GetOrAdd(node.Id, node);
+            graph.Add(node.Id);
+#endif
         }
 
         /// <summary>
@@ -68,7 +68,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         }
 
         /// <summary>
-        /// 如果指定的节点尚未探索，则探索此节点。并会保证注册包括 node 在内的所有节点。
+        /// 如果指定的节点尚未探索，则探索此节点，并注册与 node 相邻的所有节点。
         /// 如果其他线程正在探索此节点，则等待此节点探索完毕。
         /// </summary>
         private async Task LocalExploreAsync(KgNode node)
@@ -77,18 +77,14 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             var s = GetStatus(node.Id);
             if (!await s.MarkAsExploringOrUntilExplored(NodeStatus.LocalExploration))
                 return;
-            var newlyDiscoveredNodes = 0;
-            //if (RegisterNode(node)) newlyDiscoveredNodes++;
             var adj = await node.GetAdjacentNodesAsync(SearchClient);
             // an: Adjacent Node
             foreach (var an in adj)
             {
-                if (RegisterNode(an)) newlyDiscoveredNodes++;
+                RegisterNode(an);
                 RegisterEdge(node.Id, an.Id, !(an is PaperNode));
             }
             s.MarkAsExplored(NodeStatus.LocalExploration);
-            //Logger.Magik.Trace(this, EventId.OperationSucceeded,
-            //    "LocalExplore {0} -> {1} new nodes.", node, newlyDiscoveredNodes);
         }
 
         /// <summary>
@@ -99,7 +95,6 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         private async Task LocalExploreAsync(IReadOnlyCollection<PaperNode> paperNodes)
         {
             Debug.Assert(paperNodes != null);
-            var newlyDiscoveredNodes = 0;
             // 注意，有些节点可能仍处于 正在探索 的状态。
             // 需要在返回前等待这些正在探索的节点。
             var nodesToExplore = paperNodes
@@ -111,19 +106,23 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             var nodesFetched = nodesToExplore.Where(n => !n.IsStub);
             var fetchTasks = nodesToFetch.Select(n => n.Id)
                 .Partition(SEB.MaxChainedIdCount)
-                .Select(async ids =>
+                .Select(ids =>
                 {
                     // 假定 Partition 返回的是 IList / ICollection
                     var idc = (ICollection<long>) ids;
-                    var er = await SearchClient.EvaluateAsync(
+                    return SearchClient.EvaluateAsync(
                         SEB.EntityIdIn(idc),
-                        SEB.MaxChainedIdCount);
-                    if (er.Entities.Count < idc.Count)
-                        Logger.Magik.Warn(this, "批量查询实体 Id 时，返回结果数量不足。期望：{0}，实际：{1}。", idc.Count, er.Entities.Count);
-                    return er.Entities.Select(et => new PaperNode(et));
+                        SEB.MaxChainedIdCount,
+                        er =>
+                        {
+                            if (er.Entities.Count < idc.Count)
+                                Logger.Magik.Warn(this, "批量查询实体 Id 时，返回结果数量不足。期望：{0}，实际：{1}。", idc.Count,
+                                    er.Entities.Count);
+                            return Task.FromResult(er.Entities.Select(et => new PaperNode(et)));
+                        });
                 }).ToArray(); // 先让网络通信启动起来。
             // 随后，先把 paperNodes 注册一遍。
-            newlyDiscoveredNodes += nodesToExplore.Count(RegisterNode);
+            foreach (var n in nodesToExplore) RegisterNode(n);
             // 定义探索过程。
             Func<PaperNode, Task> explore = async paperNode =>
             {
@@ -131,7 +130,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                 // an: Adjacent Node
                 foreach (var an in adj)
                 {
-                    if (RegisterNode(an)) newlyDiscoveredNodes++;
+                    RegisterNode(an);
                     RegisterEdge(paperNode.Id, an.Id, !(an is PaperNode));
                 }
                 // 标记为“已经探索过”。
@@ -141,6 +140,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             await Task.WhenAll(nodesFetched.Select(explore));
             //最后处理刚刚下载下来的节点。
             await Task.WhenAll((await Task.WhenAll(fetchTasks))
+                .SelectMany(pg => pg)
                 .SelectMany(papers => papers)
                 .Select(explore));
             WAIT_FOR_EXPLORATIONS:
@@ -163,7 +163,6 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                 .Where(n => GetStatus(n.Id).TryMarkAsExploring(NodeStatus.AuthorPapersExploration))
                 .ToArray();
             if (nodesToExplore.Length == 0) goto WAIT_FOR_EXPLORATIONS;
-            var papers = 0;
             // 随后，先把 authorNodes 注册一遍。
             var fetchTasks = nodesToExplore.Select(n => n.Id)
                 .Partition(SEB.MaxChainedAuIdCount)
@@ -172,39 +171,45 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                     // 一次探索若干作者。这意味着不同作者的文章是混在一起的。
                     // 假定 Partition 返回的是 IList / ICollection
                     var idc = (ICollection<long>) ids;
-                    var er = await SearchClient.EvaluateAsync(
+                    var explorationResult = await SearchClient.EvaluateAsync(
                         SEB.AuthorIdIn(idc),
-                        Assumptions.AuthorMaxPapers*idc.Count);
-                    // 实际情况应当是， er.Entities.Count >> idc.Count
-                    if (er.Entities.Count < idc.Count)
-                        Logger.Magik.Warn(this, "批量查询实体 Id 时，返回结果数量不足。期望：>>{0}，实际：{1}。", idc.Count, er.Entities.Count);
-                    Interlocked.Add(ref papers, er.Entities.Count);
-                    await Task.WhenAll(er.Entities.Select(async et =>
-                    {
-                        var paper = new PaperNode(et);
-                        // 此处还可以注册 paper 与其所有作者之间的关系。
-                        // 这样做的好处是，万一 author1 和 author2 同时写了一篇论文。
-                        // 在这里就可以发现了。
-                        RegisterNode(paper);
-                        var localExploreTask = LocalExploreAsync(paper);
-                        // 为检索结果里的所有作者注册所有可能的机构。
-                        // 这里比较麻烦，因为一个作者可以属于多个机构，所以
-                        // 不能使用 LocalExploreAsync （会认为已经探索过。）
-                        // 而需要手动建立节点关系。
-                        foreach (var au in et.Authors)
+                        Assumptions.AuthorMaxPapers*idc.Count,
+                        async page =>
                         {
-                            if (au.AffiliationId != null)
+                            foreach (var et in page.Entities)
                             {
-                                var aff = new AffiliationNode(au);
-                                RegisterNode(aff);
-                                RegisterNode(new AuthorNode(au));
-                                RegisterEdge(au.Id, aff.Id, true);
+                                var paper = new PaperNode(et);
+                                // 此处还可以注册 paper 与其所有作者之间的关系。
+                                // 这样做的好处是，万一 author1 和 author2 同时写了一篇论文。
+                                // 在这里就可以发现了。
+                                RegisterNode(paper);
+                                var localExploreTask = LocalExploreAsync(paper);
+                                // 为检索结果里的所有作者注册所有可能的机构。
+                                // 这里比较麻烦，因为一个作者可以属于多个机构，所以
+                                // 不能使用 LocalExploreAsync （会认为已经探索过。）
+                                // 而需要手动建立节点关系。
+                                foreach (var au in et.Authors)
+                                {
+                                    if (au.AffiliationId != null)
+                                    {
+                                        var aff = new AffiliationNode(au);
+                                        RegisterNode(aff);
+                                        RegisterNode(new AuthorNode(au));
+                                        RegisterEdge(au.Id, aff.Id, true);
+                                    }
+                                }
+                                await localExploreTask;
                             }
-                        }
-                        await localExploreTask;
-                    }));
+                            return page.Entities.Count;
+                        });
+                    // 实际情况应当是， SUM(er.Entities.Count) >> idc.Count
+                    var pageSubtotal = explorationResult.Sum();
+                    if (pageSubtotal < idc.Count)
+                        Logger.Magik.Warn(this, "批量查询实体 Id 时，返回结果数量不足。期望：>>{0}，实际：{1}。", idc.Count, pageSubtotal);
+                    return pageSubtotal;
                 });
-            await Task.WhenAll(fetchTasks);
+            var subtotal = await Task.WhenAll(fetchTasks);
+            //var total = subtotal.Sum();
             // 标记为“已经探索过”。
             foreach (var an in nodesToExplore)
                 GetStatus(an.Id).MarkAsExplored(NodeStatus.AuthorPapersExploration);
@@ -426,22 +431,25 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                     .Distinct() // 注意，参考文献(或是作者——尽管在这里不需要)很可能会重复。
                     .Where(id3 => nodes[id3] is PaperNode)
                     .Partition(SEB.MaxChainedIdCount)
-                    .Select(async id3s =>
+                    .Select(id3s =>
                     {
                         //TODO 在探索作者所有的文章时，这些文章的参考文献其实已经被探索过了。
                         //在这里跳过这些节点即可。
-                        var er = await SearchClient.EvaluateAsync(SEB.And(
-                            SEB.EntityIdIn(id3s),
-                            searchConstraint),
-                            SEB.MaxChainedIdCount);
-                        await Task.WhenAll(er.Entities.Select(async et =>
-                        {
-                            var pn = new PaperNode(et);
-                            RegisterNode(pn);
-                            //Id1 -> Id3 已经在之前的局部探索处理过了。
-                            //但 Id3 节点往外还有很多尚未探索的关系。
-                            await LocalExploreAsync(pn);
-                        }));
+                        return SearchClient.EvaluateAsync(SEB.And(
+                            SEB.EntityIdIn(id3s), searchConstraint),
+                            SEB.MaxChainedIdCount,
+                            async page =>
+                            {
+                                foreach (var et in page.Entities)
+                                {
+                                    var pn = new PaperNode(et);
+                                    RegisterNode(pn);
+                                    //Id1 -> Id3 已经在之前的局部探索处理过了。
+                                    //但 Id3 节点往外还有很多尚未探索的关系。
+                                    await LocalExploreAsync(pn);
+                                }
+                                return 0;
+                            });
                     });
                 return Task.WhenAll(tasks);
             };
@@ -461,16 +469,19 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                             ? Assumptions.PaperMaxCitations
                             : paper2.CitationCount;
                         var er = await SearchClient.EvaluateAsync(SEB.And(
-                            attributeConstraint,
-                            SEB.ReferenceIdContains(paper2.Id)),
-                            maxPapers);
-                        foreach (var et in er.Entities)
-                        {
-                            var node = new PaperNode(et);
-                            RegisterNode(node);
-                            // 假异步。
-                            await LocalExploreAsync(node);
-                        }
+                            attributeConstraint, SEB.ReferenceIdContains(paper2.Id)),
+                            maxPapers,
+                            async page =>
+                            {
+                                foreach (var et in page.Entities)
+                                {
+                                    var node = new PaperNode(et);
+                                    RegisterNode(node);
+                                    // 假异步。
+                                    await LocalExploreAsync(node);
+                                }
+                                return 0;
+                            });
                     };
                 if (papers1 != null)
                 {
@@ -530,16 +541,19 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                         if (await GetStatus(node2.Id).UntilExploredAsync(NodeStatus.AuthorPapersExploration))
                             return;
                         var er = await SearchClient.EvaluateAsync(SEB.And(
-                            attributeConstraint,
-                            SEB.AuthorIdContains(node2.Id)),
-                            Assumptions.AuthorMaxPapers);
-                        foreach (var et in er.Entities)
-                        {
-                            var node = new PaperNode(et);
-                            RegisterNode(node);
-                            // 假异步。
-                            await LocalExploreAsync(node);
-                        }
+                            attributeConstraint, SEB.AuthorIdContains(node2.Id)),
+                            Assumptions.AuthorMaxPapers,
+                            async page =>
+                            {
+                                foreach (var et in page.Entities)
+                                {
+                                    var node = new PaperNode(et);
+                                    RegisterNode(node);
+                                    // 假异步。
+                                    await LocalExploreAsync(node);
+                                }
+                                return 0;
+                            });
                     };
                 if (papers1 != null)
                 {

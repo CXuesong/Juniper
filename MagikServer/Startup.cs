@@ -44,10 +44,14 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikServer
             // The order in which you add middleware components
             // is generally the order in which they take effect
             // on the request, and then in reverse for the response. 
+#if TRACE
             appBuilder.Use(RequestLoggingMiddleware);
+#endif
             {
                 var config = new HttpConfiguration();
+#if TRACE
                 config.Services.Add(typeof(IExceptionLogger), new MyExceptionLogger(requestLogger));
+#endif
                 //config.Services.Replace(typeof(IExceptionHandler), new MyExceptionHandler());
                 config.MapHttpAttributeRoutes();
                 config.Routes.IgnoreRoute("StaticFiles", StaticFilesVirtualRoot + "/{*pathInfo}");

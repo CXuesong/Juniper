@@ -30,16 +30,10 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         /// </summary>
         /// <returns>如果成功添加节点，则返回<c>true</c>。否则，如果节点已经存在，则返回<c>false</c>。</returns>
         /// <exception cref="ArgumentNullException"><paramref name="vertex"/> 为 <c>null</c> 。</exception>
-        public bool Add(TVertex vertex)
+        public void Add(TVertex vertex)
         {
             if (vertex == null) throw new ArgumentNullException(nameof(vertex));
-            var inserted = false;
-            vertices.GetOrAdd(vertex, k =>
-            {
-                inserted = true;
-                return new VertexEntry(k);
-            });
-            return inserted;
+            vertices.GetOrAdd(vertex, k => new VertexEntry(k));
         }
 
         /// <summary>

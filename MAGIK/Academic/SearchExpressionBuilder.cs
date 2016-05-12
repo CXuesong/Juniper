@@ -42,10 +42,10 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
         public const int MaxChainedFIdCount = 84;
 
         public static string EntityIdEquals(long id)
-            => $"Id={id}";
+            => "Id=" + id;
 
         public static string EntityTitleEquals(string title)
-            => $"Ti={title}";
+            => "Ti=" + title;
 
         /// <summary>
         /// 要求实体 Id 是给定集合中的一个 Id 。ids 数量不应当超过 85 。
@@ -54,7 +54,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
             => ChainExpressions(ids.Select(EntityIdEquals), "Or");
 
         public static string ReferenceIdContains(long id)
-            => $"RId={id}";
+            => "RId=" + id;
 
         public static string AuthorIdContains(long id)
             => $"Composite(AA.AuId={id})";
@@ -96,6 +96,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
 
         public static string FieldOfStudyIdIn(IEnumerable<long> ids)
         {
+            //return ChainExpressions(ids.Select(FieldOfStudyIdContains), "Or");
             var afexpr = ChainExpressions(ids.Select(id => "F.FId=" + id), "Or");
             if (string.IsNullOrEmpty(afexpr)) throw new ArgumentException("研究领域列表为空。", nameof(ids));
             return $"Composite({afexpr})";

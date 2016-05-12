@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Diagnostics;
 using System.Linq;
+using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Microsoft.Contests.Bop.Participants.Magik;
 using Microsoft.Contests.Bop.Participants.Magik.Academic;
@@ -64,12 +65,14 @@ namespace UnitTestProject1
         public void ASClientTestMethod3()
         {
             var client = GlobalServices.CreateASClient();
-            var result = TestUtility.AwaitSync(
-                client.EvaluateAsync("Composite(AA.AfN=='microsoft')", 5000,
-                    "Id"));
-            Assert.IsTrue(result.Entities.Any());
-            Trace.WriteLine($"{result.Entities.Count} Entities.");
-            foreach (var entity in result.Entities)
+            var result = TestUtility.AwaitSync(client.EvaluateAsync(
+                "Composite(AA.AfN=='microsoft')", 5000, "Id",
+                page => Task.FromResult(page.Entities)))
+                .SelectMany(page => page)
+                .ToList();
+            Assert.IsTrue(result.Any());
+            Trace.WriteLine($"{result.Count} Entities.");
+            foreach (var entity in result)
             {
                 Trace.WriteLine(entity);
             }

@@ -24,6 +24,7 @@ namespace UnitTestProject1
             Assert.AreEqual(4, g.EdgesCount);
         }
 
+        /*
         [TestMethod]
         public void GraphTestMethod2()
         {
@@ -43,6 +44,7 @@ namespace UnitTestProject1
             Assert.IsTrue(g.Add(1, 5));
             g.Add(1, 1);
         }
+        */
 
         [TestMethod]
         [ExpectedException(typeof(KeyNotFoundException))]
@@ -50,7 +52,7 @@ namespace UnitTestProject1
         {
             var g = new DirectedGraph<int>();
             for (var i = 0; i < 10; i++)
-                Assert.IsTrue(g.Add(i));
+                g.Add(i);
             Assert.IsTrue(g.Add(1, 5));
             Assert.IsTrue(g.Add(1, 30));
             Assert.IsTrue(g.Vertices.Contains(30));
