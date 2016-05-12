@@ -53,7 +53,6 @@
   <ItemGroup>
     <Compile Include="Academic\AcademicSearchClient.cs" />
     <Compile Include="Academic\AcademicSearchClient1.cs" />
-    <Compile Include="Academic\Contract\ContractSerializer.cs" />
     <Compile Include="Academic\SearchExpressionBuilder.cs" />
     <Compile Include="Analysis\Analyzer.cs" />
     <Compile Include="Analysis\Analyzer0.cs" />

@@ -50,7 +50,6 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                     Debug.Fail(string.Format("试图注册的节点{0}与已注册的节点{1}具有不同的类型。", node, nn));
             }
 #else
-            var factoryCalled = false;
             // 性能关键，不要构造复杂的工厂函数。
             nodes.GetOrAdd(node.Id, node);
             graph.Add(node.Id);

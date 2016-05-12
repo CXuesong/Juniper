@@ -28,8 +28,6 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikServer
             //ForceJit(typeof (JsonConverter).Assembly);
             Console.WriteLine(Utility.ProductName);
             Console.WriteLine(Utility.ApplicationTitle + " " + Utility.ProductVersion);
-            if (Environment.Is64BitProcess)
-                Console.WriteLine("64位进程。");
             Configurations.PrintConfigurations();
             var options = new StartOptions();
             foreach (var ba in Configurations.BaseAddresses) options.Urls.Add(ba);

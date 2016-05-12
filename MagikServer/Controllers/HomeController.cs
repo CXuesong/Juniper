@@ -15,7 +15,6 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikServer.Controllers
 {
     public class HomeController : ApiController
     {
-
         public IHttpActionResult Get()
         {
             var sb = new StringBuilder(File.ReadAllText(Startup.WwwFileSystemRoot + @"/index.html"));
@@ -24,6 +23,8 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikServer.Controllers
                 sb.Replace("$WORKING_SET$", proc.WorkingSet64.ToString("#,#"));
                 sb.Replace("$PEAK_WORKING_SET$", proc.PeakWorkingSet64.ToString("#,#"));
             }
+            sb.Replace("$GC_COUNTERS$",
+                string.Join(",", Enumerable.Range(0, GC.MaxGeneration + 1).Select(GC.CollectionCount)));
             var response = new HttpResponseMessage(HttpStatusCode.OK);
             response.Content = new StringContent(sb.ToString());
             response.Content.Headers.ContentType = MediaTypeHeaderValue.Parse("text/html");

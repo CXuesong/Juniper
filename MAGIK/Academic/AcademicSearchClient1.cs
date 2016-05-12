@@ -89,14 +89,9 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
                             var newRequest = WebRequest.Create(request.RequestUri);
                             newRequest.Method = request.Method;
                             //newRequest.Timeout = request.Timeout; of no use.
-                            var hwr = request as HttpWebRequest;
-                            var nhwr = newRequest as HttpWebRequest;
-                            if (hwr != null)
-                            {
-                                Debug.Assert(nhwr != null);
-                                nhwr.UserAgent = hwr.UserAgent;
-                                nhwr.Referer = hwr.Referer;
-                            }
+                            var hwr = (HttpWebRequest) request;
+                            hwr.UserAgent = hwr.UserAgent;
+                            hwr.Referer = hwr.Referer;
                             request = newRequest;
                             goto RETRY;
                         }

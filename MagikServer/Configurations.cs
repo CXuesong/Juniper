@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Configuration;
 using System.Linq;
 using System.Reflection;
+using System.Runtime;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -48,6 +49,8 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikServer
         /// </summary>
         public static void PrintConfigurations()
         {
+            if (Environment.Is64BitProcess) Console.WriteLine("64位进程。");
+            if (GCSettings.IsServerGC) Console.WriteLine("服务器GC已启用。");
             foreach (var p in typeof(Configurations).GetProperties(BindingFlags.Static | BindingFlags.Public))
             {
                 Console.WriteLine("{0,40} = {1}", p.Name, p.GetValue(null));
