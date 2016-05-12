@@ -20,6 +20,8 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikConsole
     {
         internal static void Main(string[] args)
         {
+            if (Environment.Is64BitProcess)
+                Console.WriteLine("64位进程。");
             try
             {
                 Task.WaitAll(MainAsync());
@@ -97,13 +99,14 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikConsole
             var sw = Stopwatch.StartNew();
             var paths = await analyzer.FindPathsAsync(id1, id2);
             sw.Stop();
-            Console.WriteLine("找到 {0} 条路径，用时 {1} 。", paths.Length, sw.Elapsed);
+            Console.WriteLine("找到 {0} 条路径，用时 {1} 。", paths.Count, sw.Elapsed);
             foreach (var g in paths.ToLookup(p => p.Length).OrderBy(g1 => g1.Key))
             {
                 Console.WriteLine("{0}-hop：{1} 条。", g.Key - 1, g.Count());
             }
             Console.WriteLine(client.DumpStatistics());
             Console.WriteLine(analyzer.DumpStatistics());
+            //Console.WriteLine(analyzer.DumpAlphabet());
         }
 
         /// <summary>

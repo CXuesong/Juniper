@@ -85,7 +85,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             {
                 ve2.SyncLock.ExitWriteLock();
             }
-            _EdgesCount++;
+            Interlocked.Increment(ref _EdgesCount);
             return true;
         }
 
@@ -123,6 +123,14 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         /// 获取边的数量。
         /// </summary>
         public int EdgesCount => _EdgesCount;
+
+        /// <summary>
+        /// 判断图中是否包含某节点。
+        /// </summary>
+        public bool Contains(TVertex vertex)
+        {
+            return vertices.ContainsKey(vertex);
+        }
 
         /// <summary>
         /// 判断图中是否包含某条有向边。

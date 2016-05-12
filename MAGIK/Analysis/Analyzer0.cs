@@ -21,7 +21,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         /// </summary>
         private NodeStatus GetStatus(long id)
         {
-            Debug.Assert(graph.Vertices.Contains(id));
+            Debug.Assert(graph.Contains(id));
             return status.GetOrAdd(id, i => new NodeStatus(id));
         }
 

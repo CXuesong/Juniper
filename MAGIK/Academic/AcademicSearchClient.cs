@@ -105,12 +105,10 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
             }
         }
 
-        ///// <summary>
-        ///// 并行提交分页请求时，并行的任务数量。
-        ///// </summary>
-        //public int ConcurrentPagingCount { get; set; } = 1;
-        // 并行提交会造成很多的 0 结果，白白浪费带宽。
-        public const int ConcurrentPagingCount = 1;
+        /// <summary>
+        /// 并行提交分页请求时，并行的任务数量。
+        /// </summary>
+        public int ConcurrentPagingCount { get; set; } = 8;
 
         #endregion
 
@@ -186,9 +184,10 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
 #endif
             var noMoreResults = false;
             int results = 0;
-            var callbackResults = new List<T>(Math.Min(count/PagingSize + 1, 256));
+            var callbackResults = new List<T>(Math.Min(count/PagingSize + 1, 32));
             EvaluationResult[] pages = null;
             var offset = 0;
+            var currentConcurrentPagingCount = 1;
             while (true)
             {
 // sessions
@@ -206,7 +205,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
                     }
                 }
                 // 顺便下载页面。
-                var sessionPages = Math.Min((count - offset)/PagingSize, ConcurrentPagingCount);
+                var sessionPages = Math.Min((count - offset)/PagingSize, currentConcurrentPagingCount);
                 if (sessionPages == 0)
                 {
                     // 此时应有 offset < count
@@ -226,6 +225,9 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
                     results += page.Entities.Count;
                 }
                 offset += sessionPages*PagingSize;
+                // 如果还有结果，那么下一次试着多下载几页。
+                if (currentConcurrentPagingCount < ConcurrentPagingCount)
+                    currentConcurrentPagingCount = Math.Min(currentConcurrentPagingCount*2, ConcurrentPagingCount);
                 // 等待前一页的回调函数返回。
                 if (callbackTask != null)
                     callbackResults.AddRange(await callbackTask);

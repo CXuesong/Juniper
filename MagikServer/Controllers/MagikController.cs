@@ -74,14 +74,18 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikServer.Controllers
                 // 返回只要 Id 就可以了。
                 // 由于结构比较简单，所以可以强行 json 。
                 var resultBuilder = new StringBuilder("[");
-                for (int i = 0; i < paths.Length; i++)
+                var isFirst = true;
+                foreach (var path in paths)
                 {
-                    if (i > 0) resultBuilder.Append(",\n");
+                    if (isFirst)
+                        isFirst = false;
+                    else
+                        resultBuilder.Append(",\n");
                     resultBuilder.Append("[");
-                    for (int j = 0; j < paths[i].Length; j++)
+                    for (int j = 0; j < path.Length; j++)
                     {
                         if (j > 0) resultBuilder.Append(",");
-                        resultBuilder.Append(paths[i][j].Id);
+                        resultBuilder.Append(path[j].Id);
                     }
                     resultBuilder.Append("]");
                 }

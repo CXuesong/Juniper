@@ -28,6 +28,6 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         /// 合法的节点类型包括
         /// 论文（Id）, 研究领域（F.Fid）, 期刊（J.JId）, 会议（C.CId）, 作者（AA.AuId）, 组织（AA.AfId）。
         /// </returns>
-        public abstract Task<KgNode[][]> FindPathsAsync(long id1, long id2);
+        public abstract Task<IReadOnlyCollection<KgNode[]>> FindPathsAsync(long id1, long id2);
     }
 }

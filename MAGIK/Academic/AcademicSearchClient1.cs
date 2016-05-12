@@ -108,7 +108,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
                 var result = (HttpWebResponse) await responseTask;
                 Logger.AcademicSearch.Trace(this, EventId.RequestOk, "{0}[{1}]({2}ms): {3}",
                     (int)result.StatusCode, result.StatusDescription, sw.ElapsedMilliseconds, request.RequestUri);
-                return ProcessAsyncResponse<T>(result);
+                return await ProcessAsyncResponseAsync<T>(result);
             }
             catch (Exception e)
             {
@@ -123,7 +123,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
             }
         }
 
-        private T ProcessAsyncResponse<T>(HttpWebResponse webResponse)
+        private async Task<T> ProcessAsyncResponseAsync<T>(HttpWebResponse webResponse)
         {
             using (webResponse)
             {
@@ -139,7 +139,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
                             {
                                 using (var reader = new StreamReader(stream))
                                 {
-                                    return (T) jsonSerializer.Deserialize(reader, typeof (T));
+                                    return await Task.Run(() => (T) jsonSerializer.Deserialize(reader, typeof (T)));
                                 }
                             }
                         }

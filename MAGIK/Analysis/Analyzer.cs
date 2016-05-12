@@ -51,7 +51,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         /// <remarks>
         /// 此函数应该是线程安全的……吧？
         /// </remarks>
-        public override async Task<KgNode[][]> FindPathsAsync(long id1, long id2)
+        public override async Task<IReadOnlyCollection<KgNode[]>> FindPathsAsync(long id1, long id2)
         {
             Logger.Magik.Enter(this, $"{id1} -> {id2}");
             var sw = Stopwatch.StartNew();
@@ -69,9 +69,9 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             var hops = await Task.WhenAll(
                 FindHop12PathsAsync(node1, node2),
                 FindHop3PathsAsync(node1, node2));
-            var result = hops.SelectMany(hop => hop).ToArray();
+            var result = MultiCollectionView.Create(hops);
             Debug.Assert(result.IsDistinct(ArrayEqualityComparer<KgNode>.Default));
-            Logger.Magik.Success(this, "在 {0} - {1} 之间找到了 {2} 条路径。用时： {3} 。", node1, node2, result.Length, sw.Elapsed);
+            Logger.Magik.Success(this, "在 {0} - {1} 之间找到了 {2} 条路径。用时： {3} 。", node1, node2, result.Count, sw.Elapsed);
             Logger.Magik.Exit(this);
             return result;
         }
@@ -98,6 +98,30 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         public void TraceGraph()
         {
             Trace.WriteLine(graph.Dump());
+        }
+
+
+        /// <summary>
+        /// 获取调用统计信息。
+        /// 统计论文节点的首字母及其累积频率。
+        /// </summary>
+        public string DumpAlphabet()
+        {
+            var alphabet = nodes.Values.AsParallel().OfType<PaperNode>()
+                .Where(n => !string.IsNullOrEmpty(n.Name))
+                .GroupBy(n => char.ToUpperInvariant(n.Name[0]))
+                .OrderBy(g => g.Key)
+                .Select(g => new {Alphabet = g.Key, Count = g.Count()})
+                .ToArray();
+            var result = "";
+            var total = alphabet.Sum(a => a.Count);
+            var current = 0;
+            foreach (var a in alphabet)
+            {
+                result += a.Alphabet + "\t" + (double) current/total + "\n";
+                current += a.Count;
+            }
+            return result;
         }
 
         /// <summary>

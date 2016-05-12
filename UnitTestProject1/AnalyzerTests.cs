@@ -18,7 +18,7 @@ namespace UnitTestProject1
     [TestClass]
     public class AnalyzerTests
     {
-        private ICollection<KgNode[]> FindPaths(long id1, long id2, bool assertPathExists)
+        private IReadOnlyCollection<KgNode[]> FindPaths(long id1, long id2, bool assertPathExists)
         {
             var asc = GlobalServices.CreateASClient();
             var a = new Analyzer(asc);
@@ -29,14 +29,14 @@ namespace UnitTestProject1
             var hop1Count = paths.Count(p => p.Length == 2);
             var hop2Count = paths.Count(p => p.Length == 3);
             var hop3Count = paths.Count(p => p.Length == 4);
-            Trace.WriteLine($"路径 {id1} -> {id2} [{hop1Count} + {hop2Count} + {hop3Count} = {paths.Length}]");
+            Trace.WriteLine($"路径 {id1} -> {id2} [{hop1Count} + {hop2Count} + {hop3Count} = {paths.Count}]");
             Trace.Indent();
             foreach (var p in paths)
             {
                 Trace.WriteLine(string.Join("\n\t->", (IEnumerable<KgNode>) p));
             }
             Trace.Unindent();
-            if (assertPathExists) Assert.AreNotEqual(0, paths.Length);
+            if (assertPathExists) Assert.AreNotEqual(0, paths.Count);
             foreach (var p in paths)
             {
                 Assert.IsTrue(p.Length >= 2); // >= 1-hop
@@ -49,7 +49,7 @@ namespace UnitTestProject1
             var paths2 = TestUtility.AwaitSync(a.FindPathsAsync(id1, id2));
             sw.Stop();
             Trace.WriteLine("Cached: " + sw.Elapsed);
-            Assert.IsTrue(paths.Length == paths2.Length);
+            Assert.IsTrue(paths.Count == paths2.Count);
             Assert.IsTrue(paths.SequenceEqual(paths2, ArrayEqualityComparer<KgNode>.Default));
             Trace.WriteLine(a.DumpStatistics());
             Trace.WriteLine(asc.DumpStatistics());
@@ -57,7 +57,7 @@ namespace UnitTestProject1
             return paths;
         }
 
-        private void AssertPathsCount(ICollection<KgNode[]> paths, int countAtLeast)
+        private void AssertPathsCount(IReadOnlyCollection<KgNode[]> paths, int countAtLeast)
         {
             if (paths.Count < countAtLeast)
                 Assert.Fail("路径数量不足。期望：{0}，实际：{1}。", countAtLeast, paths.Count);
@@ -65,7 +65,7 @@ namespace UnitTestProject1
                 Assert.Inconclusive("路径数量超过期望值。期望：{0}，实际：{1}。", countAtLeast, paths.Count);
         }
 
-        private void AssertPathExists(ICollection<KgNode[]> paths, params long[] idPath)
+        private void AssertPathExists(IReadOnlyCollection<KgNode[]> paths, params long[] idPath)
         {
             Assert.IsTrue(paths.Any(p => p.Select(n => n.Id).SequenceEqual(idPath)),
                 $"在路径集合[{paths.Count}]中找不到路径 {string.Join(" -> ", idPath)} 。");
@@ -283,6 +283,15 @@ namespace UnitTestProject1
             AssertPathsCount(paths, 2708);
         }
 
+        /// <summary>
+        /// 金帆 的测试样例。
+        /// </summary>
+        [TestMethod]
+        public void AnalyzerTestMethod595()
+        {
+            var paths = FindPaths(2018949714, 2105005017, true);
+            AssertPathsCount(paths, 595);
+        }
         /// <summary>
         /// BOP 5-5 放出的样例1。
         /// </summary>
