@@ -15,20 +15,20 @@ using Microsoft.Contests.Bop.Participants.Magik.Academic.Contract;
 
 namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
 {
-    public partial class Analyzer : AnalyzerBase
+    public partial class Analyzer : AnalyzerBase, IDisposable
     {
         // 约定：使用 Graph 保存 Id 之间的连接关系。
         // 不要使用 DirectedGraph<KgNode> 。否则在试图根据 Id 查找节点信息时可能会遇到麻烦。
-        private readonly DirectedGraph<long> graph = new DirectedGraph<long>();
+        private DirectedGraph<long> graph = new DirectedGraph<long>();
 
         // 保存已经发现的节点。
-        private readonly ConcurrentDictionary<long, KgNode> nodes = new ConcurrentDictionary<long, KgNode>();
+        private ConcurrentDictionary<long, KgNode> nodes = new ConcurrentDictionary<long, KgNode>();
 
         // 保存节点的可变状态。
         // 注意 graph 和 exploredNodes 集合可以变化，但集合中的每个项目
         // 例如以 long 表示的节点编号，和每个 KgNode 实例的内容是不可变的。
         // 因此，使用 status 映射处理这些可变状态。
-        private readonly ConcurrentDictionary<long, NodeStatus> status = new ConcurrentDictionary<long, NodeStatus>();
+        private ConcurrentDictionary<long, NodeStatus> status = new ConcurrentDictionary<long, NodeStatus>();
 
 
         public Analyzer(AcademicSearchClient asClient)
@@ -53,6 +53,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         /// </remarks>
         public override async Task<IReadOnlyCollection<KgNode[]>> FindPathsAsync(long id1, long id2)
         {
+            if (disposedValue) throw new ObjectDisposedException(ToString());
             Logger.Magik.Enter(this, $"{id1} -> {id2}");
             var sw = Stopwatch.StartNew();
             // 先找到实体/作者再说。
@@ -143,7 +144,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             Explored = 2,
         }
 
-        private class NodeStatus
+        private class NodeStatus : IDisposable
         {
             /// <summary>
             /// 节点的基础本地信息的探索情况。
@@ -346,10 +347,41 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
 #endif
             }
 
-            ~NodeStatus()
+            #region IDisposable Support
+            private bool disposedValue = false; // 要检测冗余调用
+
+            protected virtual void Dispose(bool disposing)
             {
-                syncLock?.Dispose();
+                if (!disposedValue)
+                {
+                    if (disposing)
+                    {
+                        // 释放托管状态(托管对象)。
+                        syncLock.Dispose();
+                    }
+                    // 释放未托管的资源(未托管的对象)并在以下内容中替代终结器。
+                    // 将大型字段设置为 null。
+                    explorationStatusDict = null;
+                    explorationTaskCompletionSourceDict = null;
+                    disposedValue = true;
+                }
             }
+
+            // 仅当以上 Dispose(bool disposing) 拥有用于释放未托管资源的代码时才替代终结器。
+            // ~NodeStatus() {
+            //   // 请勿更改此代码。将清理代码放入以上 Dispose(bool disposing) 中。
+            //   Dispose(false);
+            // }
+
+            // 添加此代码以正确实现可处置模式。
+            public void Dispose()
+            {
+                // 请勿更改此代码。将清理代码放入以上 Dispose(bool disposing) 中。
+                Dispose(true);
+                // 如果在以上内容中替代了终结器，则取消注释以下行。
+                // GC.SuppressFinalize(this);
+            }
+            #endregion
         }
 
         /// <summary>
@@ -494,5 +526,42 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                 return $"Interception({AnotherNodeId})";
             }
         }
+
+        #region IDisposable Support
+        private bool disposedValue = false; // 要检测冗余调用
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposedValue) return;
+            if (disposing)
+            {
+                // 释放托管状态(托管对象)。
+                graph.Dispose();
+                foreach (var s in status.Values)
+                    s.Dispose();
+            }
+            // 释放未托管的资源(未托管的对象)并在以下内容中替代终结器。
+            // 将大型字段设置为 null。
+            //graph = null;
+            //nodes = null;
+            //status = null;
+            disposedValue = true;
+        }
+
+        // 仅当以上 Dispose(bool disposing) 拥有用于释放未托管资源的代码时才替代终结器。
+        // ~Analyzer() {
+        //   // 请勿更改此代码。将清理代码放入以上 Dispose(bool disposing) 中。
+        //   Dispose(false);
+        // }
+
+        // 添加此代码以正确实现可处置模式。
+        public void Dispose()
+        {
+            // 请勿更改此代码。将清理代码放入以上 Dispose(bool disposing) 中。
+            Dispose(true);
+            // 如果在以上内容中替代了终结器，则取消注释以下行。
+            // GC.SuppressFinalize(this);
+        }
+        #endregion
     }
 }

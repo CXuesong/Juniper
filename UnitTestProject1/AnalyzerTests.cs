@@ -295,7 +295,6 @@ namespace UnitTestProject1
         /// <summary>
         /// BOP 5-5 放出的样例1。
         /// </summary>
-        [TestMethod]
         public void AnalyzerTestBop1()
         {
             // [AuthorNode:2251253715] Raquel Pau
@@ -307,7 +306,6 @@ namespace UnitTestProject1
         /// <summary>
         /// BOP 5-5 放出的样例2。
         /// </summary>
-        [TestMethod]
         public void AnalyzerTestBop2()
         {
             // [PaperNode:2147152072] Indexing By Latent Semantic Analysis
@@ -319,7 +317,6 @@ namespace UnitTestProject1
         /// <summary>
         /// BOP 5-5 放出的样例3。
         /// </summary>
-        [TestMethod]
         public void AnalyzerTestBop3()
         {
             // [PaperNode:2332023333] Recovering Transparent Shape From Time Of Flight Distortion
@@ -331,7 +328,6 @@ namespace UnitTestProject1
         /// <summary>
         /// BOP 5-11 放出的样例4。
         /// </summary>
-        [TestMethod]
         public void AnalyzerTestBop4()
         {
             // [PaperNode:2332023333] Recovering Transparent Shape From Time Of Flight Distortion
@@ -344,13 +340,26 @@ namespace UnitTestProject1
         /// <summary>
         /// BOP 5-11 放出的样例5。
         /// </summary>
-        [TestMethod]
         public void AnalyzerTestBop5()
         {
             // [AuthorNode:57898110] Timo Bolkart
             // [AuthorNode:2014261844] Stefanie Wuhrer
             var paths = FindPaths(57898110, 2014261844, true);
             AssertPathsCount(paths, 26);
+        }
+
+        /// <summary>
+        /// BOP 放出的样例组合。
+        /// </summary>
+        [TestMethod]
+        public void AnalyzerTestBop()
+        {
+            AnalyzerTestBop1();
+            AnalyzerTestBop2();
+            AnalyzerTestBop3();
+            AnalyzerTestBop4();
+            AnalyzerTestBop5();
+            Trace.WriteLine("GC Count " + string.Join(",", new[] {0,1,2}.Select(GC.CollectionCount)));
         }
     }
 }

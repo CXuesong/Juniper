@@ -1,9 +1,10 @@
-﻿#define ALLOW_CACHE
+﻿//#define ALLOW_CACHE
 
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Runtime;
 using System.Runtime.ExceptionServices;
 using System.Text;
 using System.Threading.Tasks;
@@ -22,21 +23,6 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikConsole
         {
             if (Environment.Is64BitProcess)
                 Console.WriteLine("64位进程。");
-            try
-            {
-                Task.WaitAll(MainAsync());
-            }
-            catch (AggregateException ex)
-            {
-                // 展开内部异常。
-                if (ex.InnerExceptions.Count == 1)
-                    ExceptionDispatchInfo.Capture(ex.InnerExceptions[0]).Throw();
-                throw;
-            }
-        }
-
-        private static async Task MainAsync()
-        {
             while (true)
             {
                 Console.WriteLine();
@@ -44,7 +30,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikConsole
                 Console.WriteLine("例如： 2157025439 2061503185");
                 //Console.WriteLine("查找论文：键入一个实体/作者的名称或 Id 。将会选取最匹配的结果显示。");
                 Console.Write(" >");
-                var inp = Console.ReadLine()?.Split(new[] {' ', '\t', ',', '[', ']'},
+                var inp = Console.ReadLine()?.Split(new[] { ' ', '\t', ',', '[', ']' },
                     StringSplitOptions.RemoveEmptyEntries);
                 if (inp == null || inp.Length == 0)
                 {
@@ -58,19 +44,20 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikConsole
                         // 存在非数字内容。
                         // 检索文献/作者。
                         var name = string.Join(" ", inp).ToLowerInvariant();
-                        await FindEntityAuthorAsync(name);
+                        FindEntityAuthorAsync(name).Wait();
                     }
                     else
                     {
                         var ids = inp.Take(2).Select(s => Convert.ToInt64(s)).ToArray();
-                        if (ids.Length == 1) await FindEntityAuthorAsync(ids[0]);
-                        else await FindPathsAsync(ids[0], ids[1]);
+                        if (ids.Length == 1) FindEntityAuthorAsync(ids[0]).Wait();
+                        else FindPathsAsync(ids[0], ids[1]).Wait();
                     }
                 }
                 catch (Exception ex)
                 {
                     Console.Error.WriteLine(ExpandErrorMessage(ex));
                 }
+                GC.Collect();
             }
         }
 
@@ -107,6 +94,9 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikConsole
             Console.WriteLine(client.DumpStatistics());
             Console.WriteLine(analyzer.DumpStatistics());
             //Console.WriteLine(analyzer.DumpAlphabet());
+#if !ALLOW_CACHE
+            //analyzer.Dispose();
+#endif
         }
 
         /// <summary>

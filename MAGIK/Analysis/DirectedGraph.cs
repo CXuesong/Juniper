@@ -17,10 +17,10 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
     /// 此类型使用邻接表来存储节点之间的连接关系。连接关系是简单关系，不能包含更多信息（如权重）。
     /// 此有向图不支持自环、不支持方向相同的重边。
     /// </remarks>
-    public class DirectedGraph<TVertex>
+    public class DirectedGraph<TVertex> : IDisposable
     {
         // Vertex, Adjacent Vertices
-        private readonly ConcurrentDictionary<TVertex, VertexEntry> vertices = new ConcurrentDictionary<TVertex, VertexEntry>();
+        private ConcurrentDictionary<TVertex, VertexEntry> vertices = new ConcurrentDictionary<TVertex, VertexEntry>();
         private int _EdgesCount = 0;
 
         //private static readonly ICollection<TVertex> EmptyVertices = new TVertex[0];
@@ -61,6 +61,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         {
             if (vertex1 == null) throw new ArgumentNullException(nameof(vertex1));
             if (vertex2 == null) throw new ArgumentNullException(nameof(vertex2));
+            AssertNotDisposed();
             if (EqualityComparer<TVertex>.Default.Equals(vertex1, vertex2))
                 throw new ArgumentException("不允许自环。");
             // 在此应用中不应当出现重边。
@@ -101,6 +102,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         public ISet<TVertex> AdjacentInVertices(TVertex vertex)
         {
             if (vertex == null) throw new ArgumentNullException(nameof(vertex));
+            AssertNotDisposed();
             return vertices[vertex].DuplicateAdjacentInVertices();
         }
 
@@ -111,6 +113,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         public ISet<TVertex> AdjacentOutVertices(TVertex vertex)
         {
             if (vertex == null) throw new ArgumentNullException(nameof(vertex));
+            AssertNotDisposed();
             return vertices[vertex].DuplicateAdjacentOutVertices();
         }
 
@@ -129,6 +132,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         /// </summary>
         public bool Contains(TVertex vertex)
         {
+            AssertNotDisposed();
             return vertices.ContainsKey(vertex);
         }
 
@@ -137,6 +141,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         /// </summary>
         public bool Contains(TVertex vertex1, TVertex vertex2)
         {
+            AssertNotDisposed();
             var ve1 = vertices.TryGetValue(vertex1);
             if (ve1 == null) return false;
             ve1.SyncLock.EnterReadLock();
@@ -153,6 +158,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         private VertexEntry GetVertexEntry(TVertex vertex, bool allowCreation)
         {
             if (vertex == null) throw new ArgumentNullException(nameof(vertex));
+            Debug.Assert(!disposedValue);
             // Get or Create
             if (allowCreation)
                 return vertices.GetOrAdd(vertex, k => new VertexEntry(k));
@@ -165,6 +171,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         /// </summary>
         public string Dump()
         {
+            AssertNotDisposed();
             return string.Join("\n", vertices.SelectMany(p =>
                 p.Value.AdjacentOutVertices.Select(v2 => $"{p.Key}, {v2}")));
         }
@@ -172,11 +179,11 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         /// <summary>
         /// 用于在字典中保存节点的附加信息，如邻接表。
         /// </summary>
-        private class VertexEntry
+        private class VertexEntry : IDisposable
         {
-            public HashSet<TVertex> AdjacentInVertices { get; }
+            public HashSet<TVertex> AdjacentInVertices { get; private set; }
 
-            public HashSet<TVertex> AdjacentOutVertices { get; }
+            public HashSet<TVertex> AdjacentOutVertices { get; private set; }
 
             public ReaderWriterLockSlim SyncLock { get; } = new ReaderWriterLockSlim();
 
@@ -184,6 +191,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
 
             public ISet<TVertex> DuplicateAdjacentInVertices()
             {
+                Debug.Assert(!disposedValue);
                 SyncLock.EnterReadLock();
                 var set = AdjacentInVertices.Clone();
                 SyncLock.ExitReadLock();
@@ -191,6 +199,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             }
             public ISet<TVertex> DuplicateAdjacentOutVertices()
             {
+                Debug.Assert(!disposedValue);
                 SyncLock.EnterReadLock();
                 var set = AdjacentOutVertices.Clone();
                 SyncLock.ExitReadLock();
@@ -207,10 +216,82 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                 AdjacentOutVertices = new HashSet<TVertex>();
             }
 
-            ~VertexEntry()
+            #region IDisposable Support
+            private bool disposedValue = false; // 要检测冗余调用
+
+            protected virtual void Dispose(bool disposing)
             {
-                SyncLock?.Dispose();
+                if (disposedValue) return;
+                disposedValue = true;
+                if (disposing)
+                {
+                    // 释放托管状态(托管对象)。
+                    SyncLock.Dispose();
+                }
+                // 释放未托管的资源(未托管的对象)并在以下内容中替代终结器。
+                // 将大型字段设置为 null。
+                AdjacentInVertices = null;
+                AdjacentOutVertices = null;
+            }
+
+            //// 仅当以上 Dispose(bool disposing) 拥有用于释放未托管资源的代码时才替代终结器。
+            // ~VertexEntry()
+            //{
+            //    // 请勿更改此代码。将清理代码放入以上 Dispose(bool disposing) 中。
+            //    Dispose(false);
+            //}
+
+            // 添加此代码以正确实现可处置模式。
+            public void Dispose()
+            {
+                // 请勿更改此代码。将清理代码放入以上 Dispose(bool disposing) 中。
+                Dispose(true);
+                //// 如果在以上内容中替代了终结器，则取消注释以下行。
+                //GC.SuppressFinalize(this);
+            }
+            #endregion
+
+        }
+
+        #region IDisposable Support
+        private bool disposedValue; // 要检测冗余调用
+
+        private void AssertNotDisposed()
+        {
+            if (vertices == null) throw new ObjectDisposedException(ToString());
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposedValue)
+            {
+                disposedValue = true;
+                if (disposing)
+                {
+                    // 释放托管状态(托管对象)。
+                    foreach (var v in vertices.Values)
+                        v.Dispose();
+                }
+                // 释放未托管的资源(未托管的对象)并在以下内容中替代终结器。
+                // 将大型字段设置为 null。
+                //vertices = null;
             }
         }
+
+        // TODO: 仅当以上 Dispose(bool disposing) 拥有用于释放未托管资源的代码时才替代终结器。
+        // ~DirectedGraph() {
+        //   // 请勿更改此代码。将清理代码放入以上 Dispose(bool disposing) 中。
+        //   Dispose(false);
+        // }
+
+        // 添加此代码以正确实现可处置模式。
+        public void Dispose()
+        {
+            // 请勿更改此代码。将清理代码放入以上 Dispose(bool disposing) 中。
+            Dispose(true);
+            // 如果在以上内容中替代了终结器，则取消注释以下行。
+            // GC.SuppressFinalize(this);
+        }
+        #endregion
     }
 }

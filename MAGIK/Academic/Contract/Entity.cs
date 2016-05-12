@@ -10,7 +10,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic.Contract
     public class Entity
     {
         [JsonProperty("logprob")]
-        public double LogarithmProbability { get; set; }
+        public float LogarithmProbability { get; set; }
 
         [JsonProperty("Id")]
         public long Id { get; set; }

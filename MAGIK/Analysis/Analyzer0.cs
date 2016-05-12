@@ -250,7 +250,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                 {
                     // （也许）此处还可以注册 paper 与其所有作者之间的关系。
                     // （就像 ExploreAuthorsPapersAsync 中的相关代码一样。）
-                    var paper = new PaperNode(et);
+                    //var paper = new PaperNode(et);
                     //RegisterNode(paper);
                     //var localExplorationTask = LocalExploreAsync(paper);
                     foreach(var au in et.Authors)

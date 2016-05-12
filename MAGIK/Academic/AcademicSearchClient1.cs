@@ -54,6 +54,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
         #region the json client
 
         private async Task<T> SendAsync<T>(WebRequest request)
+            where T : class
         {
             Interlocked.Increment(ref queryCounter);
             var sw = new Stopwatch();
@@ -107,8 +108,8 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
                 // 不然扔出来的很可能是 AggregateException 。
                 var result = (HttpWebResponse) await responseTask;
                 Logger.AcademicSearch.Trace(this, EventId.RequestOk, "{0}[{1}]({2}ms): {3}",
-                    (int)result.StatusCode, result.StatusDescription, sw.ElapsedMilliseconds, request.RequestUri);
-                return await ProcessAsyncResponseAsync<T>(result);
+                    (int) result.StatusCode, result.StatusDescription, sw.ElapsedMilliseconds, request.RequestUri);
+                return ProcessAsyncResponseAsync<T>(result);
             }
             catch (Exception e)
             {
@@ -123,7 +124,8 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
             }
         }
 
-        private async Task<T> ProcessAsyncResponseAsync<T>(HttpWebResponse webResponse)
+        private T ProcessAsyncResponseAsync<T>(HttpWebResponse webResponse)
+            where T : class
         {
             using (webResponse)
             {
@@ -138,8 +140,10 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
                             if (stream != null)
                             {
                                 using (var reader = new StreamReader(stream))
+                                using (var jreader = new JsonTextReader(reader))
                                 {
-                                    return await Task.Run(() => (T) jsonSerializer.Deserialize(reader, typeof (T)));
+                                    //return ContractSerializer.Deserialize<T>(reader);
+                                    return jsonSerializer.Deserialize<T>(jreader);
                                 }
                             }
                         }
