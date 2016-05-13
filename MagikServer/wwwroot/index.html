@@ -24,7 +24,7 @@
         }
 
         .spacing-block {
-            height: 80px;
+            height: 70px;
         }
 
         .product-name {
@@ -44,7 +44,6 @@
             /*height: 70px;*/
             width: 100%;
             color: gray;
-            
         }
 
         hr {
@@ -54,10 +53,83 @@
         table.listing tbody th {
             text-align: right;
         }
+
         table.listing tbody td {
             text-align: left;
         }
+
+        .popup {
+            border: 1px gray;
+        }
+
+        pre {
+            border: 1px silver;
+            background: #eeeeee;
+        }
     </style>
+    <script>
+        var Promise = function () {
+        }
+        Promise.prototype.then = function (resolve, reject) {
+        }
+        Promise.prototype.resolve = function (result) {
+        }
+        Promise.prototype.reject = function (error) {
+        }
+        function getStringAsync(uri) {
+            var xhr = new XMLHttpRequest();
+            var p = new Promise();
+            xhr.onreadystatechange = function () {
+                switch (this.readyState) {
+                    case XMLHttpRequest.DONE:
+                        if (this.status == 200)
+                            p.resolve(this.responseText);
+                        else
+                            p.reject("[" + this.status + "]" + this.statusText);
+                    default:
+                }
+            }
+            xhr.open("GET", uri, true);
+            xhr.send(null);
+            return p;
+        }
+
+        function clearCacheCommand(element) {
+            var p = getStringAsync("/magik/v1/paths?action=purge");
+            p.resolve = function (result) {
+                element.innerText = "缓存已清除";
+            }
+            p.reject = function (error) {
+                element.innerText = error.toString();
+            }
+        }
+
+        function findPathsCommand(queryString, queryUri, outputElement) {
+            var matches = queryString.match(/\d{6,}/g);
+            if (!matches || matches.length < 2) {
+                outputElement.innerText = "在检索表达式中未找到节点Id对。";
+                return;
+            }
+            var id1 = parseInt(matches[0]);
+            var id2 = parseInt(matches[1]);
+            var p = getStringAsync(queryUri + "?id1=" + id1 + "&id2=" + id2);
+            outputElement.innerText = "正在检索： " + id1 + " -- " + id2 + "……";
+            p.resolve = function (result) {
+                var paths = result.match(/\[\s*\d+(\s*,\s*\d+)*\s*\]/g);
+                outputElement.removeChild(outputElement.firstChild);
+                var statLabel = document.createElement("div");
+                statLabel.className = "popup";
+                statLabel.innerText = "路径数量： " + paths.length + " 。";
+                var contentContainer = document.createElement("pre");
+                contentContainer.innerText = paths;
+                outputElement.appendChild(statLabel);
+                outputElement.appendChild(contentContainer);
+            }
+            p.reject = function (error) {
+                outputElement.innerText = error.toString();
+            }
+        }
+    </script>
 </head>
 <body>
     <div class="primary-block">
@@ -74,16 +146,27 @@
             MAG Inspection Kit
         </div>
         <hr />
-        <div>
+        <div id="dynamicContainer">
             编程之美 - 2016
         </div>
         <div class="spacing-block"></div>
         <div>
             <b>用法</b>
-            <pre>http://hostname:port/magik/v1/paths?expr=[<var>id1</var>, <var>id1</var>]</pre>
-            - 或 -
-            <pre>http://hostname:port/magik/v1/paths?id1=<var>id1</var>&amp;id2=<var>id2</var></pre>
+            <pre>
+<script>document.write(location.origin);</script>/magik/v1/paths?expr=[<var>id1</var>, <var>id1</var>]
+<script>document.write(location.origin);</script>/magik/v1/paths?id1=<var>id1</var>&amp;id2=<var>id2</var>
+</pre>
         </div>
+    </div>
+    <div class="primary-block">
+        <a href="javascript:void(0);" onclick="clearCacheCommand(this);">清空缓存</a>
+        |
+        <div style="display: inline-block;">
+            <input type="text" id="queryUri" width="20" placeholder="Web API 终结点 URI。" />
+            <br />
+            <input type="text" id="queryInput" width="20" placeholder="先 id1 后 id2，格式任意。" />
+        </div><script>queryUri.value = location.origin + "/magik/v1/paths";</script>
+        <a href="javascript:void(0);" onclick="findPathsCommand(queryInput.value, queryUri.value, dynamicContainer);">查询</a>
     </div>
     <div class="spacing-block"></div>
     <footer class="primary-block">
@@ -92,14 +175,14 @@
                 <tr><th colspan="2">状态</th></tr>
             </thead>
             <tbody>
-            <tr>
-                <th>工作集</th>
-                <td>$WORKING_SET$</td>
-            </tr>
-            <tr>
-                <th>峰值工作集</th>
-                <td>$PEAK_WORKING_SET$</td>
-            </tr>
+                <tr>
+                    <th>工作集</th>
+                    <td>$WORKING_SET$</td>
+                </tr>
+                <tr>
+                    <th>峰值工作集</th>
+                    <td>$PEAK_WORKING_SET$</td>
+                </tr>
                 <tr>
                     <th>GC</th>
                     <td>$GC_COUNTERS$</td>

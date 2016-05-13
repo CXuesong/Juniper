@@ -1,6 +1,4 @@
-﻿#define ENABLE_REQUEST_TIMER
-
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -86,16 +84,12 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikServer
         private async Task RequestLoggingMiddleware(IOwinContext context, Func<Task> next)
         {
             var request = context.Request;
-#if ENABLE_REQUEST_TIMER
             var sw = Stopwatch.StartNew();
-#endif
             requestLogger.WriteVerbose($"{request.RemoteIpAddress} {request.Method}: {request.Uri}");
             await next();
             var response = context.Response;
             requestLogger.WriteVerbose($"{request.RemoteIpAddress} {request.Method}: {request.Uri} -> {response.StatusCode} {response.ContentType} {response.ContentLength}");
-#if ENABLE_REQUEST_TIMER
-            requestLogger.WriteVerbose($"REQUEST_TIMER\t{request.QueryString.Value}\t{sw.ElapsedMilliseconds}");
-#endif
+            TimerLogger.TraceTimer("Request", sw);
         }
     }
 

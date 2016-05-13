@@ -171,4 +171,24 @@ namespace Microsoft.Contests.Bop.Participants.Magik
             return $"{obj.GetType().Name}#{content}";
         }
     }
+
+    /// <summary>
+    /// 用于发布与计时相关的日志。
+    /// </summary>
+    public static class TimerLogger
+    {
+        /// <summary>
+        /// 事件跟踪源。其名称为 Magik.Timers 。
+        /// </summary>
+        public static TraceSource TraceSource { get; } = new TraceSource("Magik.Timers");
+
+        /// <summary>
+        /// 将一条简明的计时消息写入日志。
+        /// </summary>
+        public static void TraceTimer(string name, Stopwatch sw)
+        {
+            if (TraceSource.Switch.ShouldTrace(TraceEventType.Information))
+                TraceSource.TraceInformation(DateTime.Now.ToString("O") + "\t" + name + "\t" + sw.ElapsedMilliseconds);
+        }
+    }
 }

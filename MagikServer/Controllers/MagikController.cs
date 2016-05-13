@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
@@ -67,6 +68,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikServer.Controllers
         [Route("magik/v1/paths")]
         public async Task<IHttpActionResult> Get(long id1, long id2)
         {
+            var sw = Stopwatch.StartNew();
             var analyzer = Utility.GetAnalyzer();
             try
             {
@@ -100,6 +102,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikServer.Controllers
             {
                 analyzer.LogStatistics();
                 analyzer.SearchClient.LogStatistics();
+                TimerLogger.TraceTimer("MagikController", sw);
             }
         }
     }
