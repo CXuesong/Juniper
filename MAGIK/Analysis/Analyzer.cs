@@ -72,6 +72,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             var result = MultiCollectionView.Create(hops);
             Debug.Assert(result.IsDistinct(ArrayEqualityComparer<KgNode>.Default));
             Logger.Magik.Success(this, "在 {0} - {1} 之间找到了 {2} 条路径。用时： {3} 。", node1, node2, result.Count, sw.Elapsed);
+            Logger.Magik.Trace(this, "ANALYZER_TIMER\t" + sw.ElapsedMilliseconds);
             Logger.Magik.Exit(this);
             return result;
         }

@@ -1,0 +1,9 @@
+﻿<?xml version='1.0' encoding='utf-8'?>
+<SettingsFile xmlns="http://schemas.microsoft.com/VisualStudio/2004/01/settings" CurrentProfile="(Default)" GeneratedClassNamespace="ContestantServerTester.Properties" GeneratedClassName="Settings">
+  <Profiles />
+  <Settings>
+    <Setting Name="LastEndpoint" Type="System.String" Scope="User">
+      <Value Profile="(Default)">http://localhost:9000/magik/v1/paths</Value>
+    </Setting>
+  </Settings>
+</SettingsFile>
