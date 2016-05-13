@@ -45,10 +45,10 @@ namespace UnitTestProject1
         {
             // 2157025439: what do people ask their social networks and why a survey study of status message q a behavior
             // 2061503185: implicit feedback for inferring user preference a bibliography
-            var paper1 = new PaperNode(2157025439, "what do people ask ...");
-            var paper2 = new PaperNode(2061503185, "implicit feedback for inferring ...");
-            var adj1 = TestUtility.AwaitSync(paper1.GetAdjacentNodesAsync(asClient));
-            var adj2 = TestUtility.AwaitSync(paper2.GetAdjacentNodesAsync(asClient));
+            var paper1 = new PaperNodeBase(2157025439, "what do people ask ...");
+            var paper2 = new PaperNodeBase(2061503185, "implicit feedback for inferring ...");
+            var adj1 = TestUtility.AwaitSync(paper1.GetAdjacentNodes());
+            var adj2 = TestUtility.AwaitSync(paper2.GetAdjacentNodes());
             // Author + Conference/Journal + Field of Study + References
             Assert.AreEqual(3 + 1 + 3 + 26, adj1.Count);
             // Authors
@@ -89,13 +89,13 @@ namespace UnitTestProject1
             // 1982462162: Jaime Teevan
             var author1 = new AuthorNode(2123314761, "Meredith Ringel Morris");
             var author2 = new AuthorNode(1982462162, "Jaime Teevan");
-            var adj1 = TestUtility.AwaitSync(author1.GetAdjacentNodesAsync(asClient));
-            var adj2 = TestUtility.AwaitSync(author2.GetAdjacentNodesAsync(asClient));
+            var adj1 = TestUtility.AwaitSync(author1.GetAdjacentNodes());
+            var adj2 = TestUtility.AwaitSync(author2.GetAdjacentNodes());
             Trace.WriteLine($"{author1} : {adj1.Count} nodes.");
-            Trace.WriteLine($"\t{adj1.OfType<PaperNode>().Count()} papers");
+            Trace.WriteLine($"\t{adj1.OfType<PaperNodeBase>().Count()} papers");
             Trace.WriteLine($"\t{adj1.OfType<AffiliationNode>().Count()} affiliations");
             Trace.WriteLine($"{author2} : {adj2.Count} nodes.");
-            Trace.WriteLine($"\t{adj2.OfType<PaperNode>().Count()} papers");
+            Trace.WriteLine($"\t{adj2.OfType<PaperNodeBase>().Count()} papers");
             Trace.WriteLine($"\t{adj2.OfType<AffiliationNode>().Count()} affiliations");
             // 150篇论文 + 4机构
             Assert.IsTrue(adj1.Count >= 150 + 3);
@@ -113,8 +113,8 @@ namespace UnitTestProject1
             // 63966007: Massachusetts Institute Of Technology
             var affiliation1 = new AffiliationNode(1290206253, "Microsoft");
             var affiliation2 = new AffiliationNode(63966007, "Massachusetts Institute Of Technology");
-            var adj1 = TestUtility.AwaitSync(affiliation1.GetAdjacentNodesAsync(asClient));
-            var adj2 = TestUtility.AwaitSync(affiliation2.GetAdjacentNodesAsync(asClient));
+            var adj1 = TestUtility.AwaitSync(affiliation1.GetAdjacentNodes());
+            var adj2 = TestUtility.AwaitSync(affiliation2.GetAdjacentNodes());
             Assert.IsTrue(adj1.Count/2 >= 1000);
             Assert.IsTrue(adj2.Count/2 >= 1000);
         }
@@ -127,7 +127,7 @@ namespace UnitTestProject1
         {
             var array1 = new KgNode[]
             {
-                new PaperNode(10, null),
+                new PaperNodeBase(10, null),
                 new AuthorNode(20, null),
                 new AffiliationNode(30, null),
             };
@@ -135,11 +135,11 @@ namespace UnitTestProject1
             {
                 new AffiliationNode(10, null),
                 new AuthorNode(20, null),
-                new PaperNode(30, null),
+                new PaperNodeBase(30, null),
             };
             var array3 = new KgNode[]
             {
-                new PaperNode(10, null),
+                new PaperNodeBase(10, null),
                 new AuthorNode(20, null),
                 new AffiliationNode(31, null),
             };

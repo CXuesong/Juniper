@@ -59,7 +59,6 @@
     <Compile Include="TestInitializer.cs" />
     <Compile Include="TestUtility.cs" />
     <Compile Include="DirectedGraphTests.cs" />
-    <Compile Include="KgNodeTests.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\MAGIK\MAGIK.csproj">

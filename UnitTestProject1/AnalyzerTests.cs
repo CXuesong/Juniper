@@ -1,5 +1,5 @@
 ﻿#define CACHE_TEST_ENABLED
-#define SKIP_HUGE_TEST_CASES
+//#define SKIP_HUGE_TEST_CASES
 
 using System;
 using System.Collections;

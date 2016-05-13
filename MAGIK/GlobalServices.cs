@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Contests.Bop.Participants.Magik.Academic;
+using Microsoft.Contests.Bop.Participants.Magik.Analysis;
 
 namespace Microsoft.Contests.Bop.Participants.Magik
 {
@@ -52,6 +53,12 @@ namespace Microsoft.Contests.Bop.Participants.Magik
         /// </remarks>
         public const string ReleaseASEvaluationAttributes =
             "Id,Y,AA.AuId,AA.AfId,F.FId,J.JId,C.CId,RId,CC";
+
+        /// <summary>
+        /// 适用于仅需推断作者和机构联系时要求返回的属性列表。
+        /// 请参阅 <see cref="Analyzer.ExploreAuthorInAffiliations"/> 。
+        /// </summary>
+        public const string AuthorAffiliationASEvaluationAttributes = "AA.AuId,AA.AfId";
 
         /// <summary>
         /// 获取 Academic Search 订阅密钥。

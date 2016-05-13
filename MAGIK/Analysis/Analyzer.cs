@@ -108,7 +108,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         /// </summary>
         public string DumpAlphabet()
         {
-            var alphabet = nodes.Values.AsParallel().OfType<PaperNode>()
+            var alphabet = nodes.Values.AsParallel().OfType<PaperNodeBase>()
                 .Where(n => !string.IsNullOrEmpty(n.Name))
                 .GroupBy(n => char.ToUpperInvariant(n.Name[0]))
                 .OrderBy(g => g.Key)
@@ -302,9 +302,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                 syncLock.EnterWriteLock();
                 try
                 {
-#if DEBUG
                     Debug.Assert(explorationStatusDict[domainKey] == ExplorationStatus.Exploring);
-#endif
                     explorationStatusDict[domainKey] = ExplorationStatus.Explored;
                     var tcs = explorationTaskCompletionSourceDict.TryGetValue(domainKey);
                     if (tcs != null)
