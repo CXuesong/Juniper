@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Configuration;
 using System.Linq;
@@ -18,6 +19,8 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikServer
         /// 服务器的基地址。
         /// </summary>
         public static string[] BaseAddresses { get; }
+
+        public static bool ASClientUseUltimateKey { get; }
 
         /// <summary>
         /// 学术搜索客户端的分页记录数量。
@@ -53,7 +56,11 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikServer
             if (GCSettings.IsServerGC) Console.WriteLine("服务器GC已启用。");
             foreach (var p in typeof(Configurations).GetProperties(BindingFlags.Static | BindingFlags.Public))
             {
-                Console.WriteLine("{0,40} = {1}", p.Name, p.GetValue(null));
+                var value = p.GetValue(null);
+                var s = value.ToString();
+                var enumerable = value as IEnumerable;
+                if (enumerable != null) s = string.Join(",", enumerable.Cast<object>());
+                Console.WriteLine("{0,40} = {1}", p.Name, s);
             }
         }
 
@@ -64,6 +71,8 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikServer
                             ?? new[] {"http://localhost:9000/"};
             ASClientPagingSize = config["ASClient.PagingSize"]?.ToInt32()
                                  ?? 1000;
+            ASClientUseUltimateKey = config["ASClient.UseUltimateKey"]?.ToBoolean()
+                                     ?? true;
             AnalyzerCacheTimeout = config["Analyzer.CacheTimeout"]?.ToTimeSpan()
                                    ?? TimeSpan.Zero;
         }

@@ -20,7 +20,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik
         /// <remarks>
         /// 请在 <see cref="InitializeConfidential" /> 的实现中设置此属性。
         /// </remarks>
-        public static bool ASUseUltimateKey { get; private set; } = false;
+        public static bool ASUseUltimateKey { get; set; } = false;
 
         /// <summary>
         /// 在进行学术搜索时是否使用最小的请求属性集合，以期减少网络负载，提高性能。
@@ -28,7 +28,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik
         /// <remarks>
         /// 请在 <see cref="InitializeConfidential" /> 的实现中设置此属性。
         /// </remarks>
-        public static bool ASUseCompactQuery { get; private set; }
+        public static bool ASUseCompactQuery { get; set; }
 #if DEBUG
             = false;
 #else

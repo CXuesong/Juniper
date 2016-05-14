@@ -8,7 +8,8 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic.Contract
         [JsonProperty("expr")]
         public string Expression { get; set; }
 
-        [JsonProperty("entities")]
         public IList<Entity> Entities { get; set; }
+
+        public bool Aborted { get; set; }
     }
 }

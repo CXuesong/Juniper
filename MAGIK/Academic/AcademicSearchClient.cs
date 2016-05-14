@@ -149,6 +149,9 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
             var request = WebRequest.Create(requestUrl);
             InitializeRequest(request, "GET");
             var result = await SendAsync<EvaluationResult>(request);
+            if (result.Aborted)
+                Logger.AcademicSearch.Warn(this, "Evalutation aborted with {0} entities: {1}",
+                    result.Entities.Count, expression);
             Logger.AcademicSearch.Exit(this, $"{expression}; {result?.Entities?.Count} Entities");
             return result;
         }
