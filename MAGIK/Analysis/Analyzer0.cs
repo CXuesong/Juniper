@@ -78,10 +78,6 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         /// </summary>
         private void RegisterEdge(long id1, long id2, bool biDirectional)
         {
-            if ((id1 == 1982462162 || id2 == 1982462162) && (id1 == 27837315 || id2 == 27837315))
-            {
-                Trace.WriteLine(new StackTrace(true).ToString());
-            }
             graph.Add(id1, id2);
             if (biDirectional) graph.Add(id2, id1);
         }
