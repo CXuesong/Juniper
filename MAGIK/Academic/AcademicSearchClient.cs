@@ -95,6 +95,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
         /// <summary>
         /// 提交请求时自动的分页大小。
         /// </summary>
+        /// <remarks>不要在开始发送请求后修改此属性。</remarks>
         public int PagingSize
         {
             get { return _PagingSize; }
@@ -119,6 +120,8 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
 
         #endregion
 
+#region Evaluation
+
         /// <summary>
         /// 异步计算查询表达式，并进行学术文献的检索。
         /// </summary>
@@ -138,8 +141,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
         /// <summary>
         /// 异步计算查询表达式，并进行学术文献的检索。
         /// </summary>
-        public async Task<EvaluationResult> EvaluateAsync(string expression, int count, int offset,
-            string orderBy, string attributes)
+        public async Task<EvaluationResult> EvaluateAsync(string expression, int count, int offset, string orderBy, string attributes)
         {
             Logger.AcademicSearch.Enter(this, $"{expression}; ({offset},{offset + count}]");
             var requestUrl =
@@ -155,7 +157,6 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
             Logger.AcademicSearch.Exit(this, $"{expression}; {result?.Entities?.Count} Entities");
             return result;
         }
-
 
         /// <summary>
         /// 异步计算查询表达式，并进行学术文献的检索。启用自动分页。
@@ -188,9 +189,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
                 if (er.Entities.Count > 0) promise.DeclarePartitionFinished(er);
                 return;
             }
-#if TRACE
             Logger.AcademicSearch.Enter(this, $"{expression}, [1,{count}] Paged");
-#endif
             var noMoreResults = false;
             int results = 0;
             EvaluationResult[] pages = null;
@@ -198,7 +197,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
             var currentConcurrentPagingCount = 1;
             while (true)
             {
-// sessions
+                // sessions
                 // 如果有回调，先执行回调。
                 if (pages != null)
                 {
@@ -231,9 +230,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
                 if (currentConcurrentPagingCount < ConcurrentPagingCount)
                     currentConcurrentPagingCount = Math.Min(currentConcurrentPagingCount*2, ConcurrentPagingCount);
             }
-#if TRACE
             Logger.AcademicSearch.Exit(this, $"{expression}; {results} Entities in total. {(noMoreResults ? "" : " Truncated.")}");
-#endif
         }
 
         /// <summary>
@@ -286,7 +283,72 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
         {
             return IsEvaluationCountGreaterThanAsync(expression, 0);
         }
+        #endregion
 
+#region CalcHistogram
+
+        /// <summary>
+        /// 异步计算查询表达式，进行学术文献直方图的检索。
+        /// </summary>
+        public async Task<CalcHistogramResult> CalcHistogramAsync(string expression, int count, int offset, string attributes)
+        {
+            if (string.IsNullOrEmpty(attributes)) throw new ArgumentNullException(nameof(attributes));
+            Logger.AcademicSearch.Enter(this, $"{expression}; ({offset},{offset + count}]");
+            var requestUrl =
+                $"{ServiceHostUrl}/calchistogram?expr={expression}&model=latest&count={count}&offset={offset}&attributes={attributes}{QuerySuffix}";
+            // 我们要保证查询字符串不要太长。
+            Debug.Assert(requestUrl.Length < SearchExpressionBuilder.MaxQueryLength - 10);
+            var request = WebRequest.Create(requestUrl);
+            InitializeRequest(request, "GET");
+            var result = await SendAsync<CalcHistogramResult>(request);
+            if (result.Aborted)
+                Logger.AcademicSearch.Warn(this, "CalcHistogram aborted with {0} histograms: {1}",
+                    result.Histograms, expression);
+            Logger.AcademicSearch.Exit(this, $"{expression}; {result?.Histograms?.Count} histograms");
+            return result;
+        }
+
+        /// <summary>
+        /// 异步计算查询表达式，进行学术文献直方图的检索。启用分页。
+        /// </summary>
+        public ParitionedPromise<CalcHistogramResult> CalcHistogramAsync(string expression, int count, string attributes)
+        {
+            var promise = new ParitionedPromise<CalcHistogramResult>();
+            promise.SetProducerTask(CalcHistogramAsync(expression, count, attributes, promise));
+            return promise;
+        }
+
+        /// <summary>
+        /// 异步计算查询表达式，进行学术文献直方图的检索。启用分页。
+        /// </summary>
+        private async Task CalcHistogramAsync(string expression, int count, string attributes,
+            ParitionedPromise<CalcHistogramResult> promise)
+        {
+            if (string.IsNullOrEmpty(attributes)) throw new ArgumentNullException(nameof(attributes));
+            if (promise == null) throw new ArgumentNullException(nameof(promise));
+            if (count < PagingSize)
+            {
+                await CalcHistogramAsync(expression, count, 0, attributes);
+                return;
+            }
+            Logger.AcademicSearch.Enter(this, $"{expression}, [1,{count}] Paged");
+            var noMoreResults = false;
+            for (var offset = 0; offset < count; offset += PagingSize)
+            {
+                var result = await CalcHistogramAsync(expression, PagingSize, offset, attributes);
+                if (result.Histograms.Any(h => h.Entries.Count > 0))
+                    promise.DeclarePartitionFinished(result);
+                if (result.Histograms.All(h => h.Entries.Count < PagingSize))
+                {
+                    // 没有结果了。
+                    noMoreResults = true;
+                    break;
+                }
+            }
+            Logger.AcademicSearch.Exit(this, $"{expression}; {(noMoreResults ? "" : " Truncated.")}");
+        }
+
+        #endregion
         /// <summary>
         /// 客户端预热。
         /// </summary>

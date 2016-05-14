@@ -53,6 +53,7 @@
   <ItemGroup>
     <Compile Include="Academic\AcademicSearchClient.cs" />
     <Compile Include="Academic\AcademicSearchClient1.cs" />
+    <Compile Include="Academic\Contract\CalcHistogramResult.cs" />
     <Compile Include="Academic\SearchExpressionBuilder.cs" />
     <Compile Include="Analysis\Analyzer.cs" />
     <Compile Include="Analysis\Analyzer0.cs" />
@@ -64,7 +65,6 @@
     <Compile Include="Analysis\KgNodeCollection.cs" />
     <Compile Include="Academic\Contract\ClientError.cs" />
     <Compile Include="Academic\ClientException.cs" />
-    <Compile Include="Academic\Contract\Author.cs" />
     <Compile Include="Academic\Contract\ClientErrorContainer.cs" />
     <Compile Include="Academic\Contract\Entity.cs" />
     <Compile Include="Academic\Contract\EvaluationResult.cs" />

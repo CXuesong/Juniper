@@ -54,6 +54,32 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic.Contract
         }
     }
 
+    public class Author
+    {
+        [JsonProperty("AuN")]
+        public string Name { get; set; }
+
+        [JsonProperty("AuId")]
+        public long Id { get; set; }
+
+        [JsonProperty("AfN")]
+        public string AffiliationName { get; set; }
+
+        /// <summary>
+        /// （可选）（作者有可能不属于任何组织。）
+        /// </summary>
+        [JsonProperty("AfId")]
+        public long? AffiliationId { get; set; }
+
+        /// <summary>
+        /// 返回表示当前对象的字符串。
+        /// </summary>
+        public override string ToString()
+        {
+            return $"[{Id}]{Name?.ToTitleCase()} @ [{AffiliationId}]{AffiliationName?.ToTitleCase()}";
+        }
+    }
+
     public class Conference
     {
         [JsonProperty("CId")]
