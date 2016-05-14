@@ -61,7 +61,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik
         /// <summary>
         /// 将一个 <see cref="IEnumerable{T}"/> 按照固定的数量分组。
         /// </summary>
-        public static IEnumerable<IEnumerable<T>> Partition<T>(this IEnumerable<T> source, int partitionSize)
+        public static IEnumerable<IReadOnlyCollection<T>> Partition<T>(this IEnumerable<T> source, int partitionSize)
         {
             if (source == null) throw new ArgumentNullException(nameof(source));
             if (partitionSize <= 0) throw new ArgumentOutOfRangeException(nameof(partitionSize));

@@ -30,6 +30,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         // 因此，使用 status 映射处理这些可变状态。
         private readonly ConcurrentDictionary<long, NodeStatus> status = new ConcurrentDictionary<long, NodeStatus>();
 
+        private readonly ConcurrentDictionary<long, int> _CitationCountDict = new ConcurrentDictionary<long, int>();
 
         public Analyzer(AcademicSearchClient asClient)
             : base(asClient)
@@ -56,15 +57,11 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             Logger.Magik.Enter(this, $"{id1} -> {id2}");
             var sw = Stopwatch.StartNew();
             // 先找到实体/作者再说。
-            var nodes = await Task.WhenAll(GetEntityOrAuthorNodeAsync(id1),
-                GetEntityOrAuthorNodeAsync(id2));
+            var nodes = await Task.WhenAll(BeginExplorationAt(id1), BeginExplorationAt(id2));
             var node1 = nodes[0];
             var node2 = nodes[1];
             if (node1 == null) throw new ArgumentException($"在 MAG 中找不到指定的 Id/AuId：{id1}。", nameof(id1));
             if (node2 == null) throw new ArgumentException($"在 MAG 中找不到指定的 Id/AuId：{id2}。", nameof(id2));
-            // 在图中注册节点。
-            RegisterNode(node1);
-            RegisterNode(node2);
             // 开始搜索。
             var hops = await Task.WhenAll(
                 FindHop12PathsAsync(node1, node2),
@@ -108,7 +105,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         /// </summary>
         public string DumpAlphabet()
         {
-            var alphabet = nodes.Values.AsParallel().OfType<PaperNodeBase>()
+            var alphabet = nodes.Values.AsParallel().OfType<PaperNode>()
                 .Where(n => !string.IsNullOrEmpty(n.Name))
                 .GroupBy(n => char.ToUpperInvariant(n.Name[0]))
                 .OrderBy(g => g.Key)
@@ -126,47 +123,64 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         }
 
         /// <summary>
+        /// 从局部缓存中获取论文的引用次数。
+        /// </summary>
+        private int CitationCount(PaperNode node, int defaultValue = Assumptions.PaperMaxCitations)
+        {
+            Debug.Assert(node != null);
+            int count;
+            if (_CitationCountDict.TryGetValue(node.Id, out count)) return count;
+            return defaultValue;
+        }
+
+        /// <summary>
         /// 节点的状态标志。
         /// </summary>
-        private enum ExplorationStatus : byte
+        private enum FetchingStatus : byte
         {
             /// <summary>
             /// 节点未被探索。
             /// </summary>
-            Unexplored = 0,
+            Unfetched = 0,
             /// <summary>
             /// 这是探索过程的中间状态。仅在 Explore 函数调用完成前，部分节点会位于此状态。
             /// </summary>
-            Exploring = 1,
+            Fetching = 1,
             /// <summary>
             /// 局部相关连接已经探索完毕。
             /// </summary>
-            Explored = 2,
+            Fetched = 2,
         }
 
         private class NodeStatus
         {
+            ///// <summary>
+            ///// 节点的基础本地信息的探索情况。
+            ///// </summary>
+            //public static readonly ExplorationDomainKey LocalExploration =
+            //    new TokenExplorationDomainKey("LocalExploration");
+
             /// <summary>
-            /// 节点的基础本地信息的探索情况。
+            /// 论文联系的探索情况。
             /// </summary>
-            public static readonly ExplorationDomainKey LocalExploration =
-                new TokenExplorationDomainKey("LocalExploration");
+            public static readonly FetchingDomainKey PaperFetching =
+                new TokenFetchingDomainKey("PaperExploration");
 
             /// <summary>
             /// 作者所写的所有论文的探索情况。
             /// </summary>
-            public static readonly ExplorationDomainKey AuthorPapersExploration =
-                new TokenExplorationDomainKey("AuthorPapersExploration");
+            public static readonly FetchingDomainKey AuthorPapersFetching =
+                new TokenFetchingDomainKey("AuthorPapersExploration");
 
             // 一个节点被探索，当且仅当在向服务器提交查询，并能够获得此节点的完全信息之后。
             // 在 DEBUG 模式下，完全信息包括节点的名称和此节点的邻节点（保存在 Graph 中，
             //      但很可能不在 exploredNodes 中，因为这些邻节点还没有被探索）。
             // 在 RELEASE 模式下，完全信息仅包括节点的邻节点。
-            private readonly Dictionary<ExplorationDomainKey, ExplorationStatus> explorationStatusDict 
-                = new Dictionary<ExplorationDomainKey, ExplorationStatus>();
+            private readonly Dictionary<FetchingDomainKey, FetchingStatus> explorationStatusDict 
+                = new Dictionary<FetchingDomainKey, FetchingStatus>();
             // 约定：在任务结束后，TaskCompletionSource 应当返回 true 。
-            private readonly Dictionary<ExplorationDomainKey, TaskCompletionSource<bool>> explorationTaskCompletionSourceDict
-                = new Dictionary<ExplorationDomainKey, TaskCompletionSource<bool>>();
+            private readonly Dictionary<FetchingDomainKey, TaskCompletionSource<bool>> explorationTaskCompletionSourceDict
+                = new Dictionary<FetchingDomainKey, TaskCompletionSource<bool>>();
             private ReaderWriterLockSlim syncLock = new ReaderWriterLockSlim();
 #if DEBUG
             private readonly long _NodeId;
@@ -178,8 +192,8 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
 #endif
 
             /// <summary>
-            /// 如果当前节点处于 <see cref="ExplorationStatus.Unexplored"/> 状态，
-            /// 则尝试将节点置于 <see cref="ExplorationStatus.Exploring" /> 状态。
+            /// 如果当前节点处于 <see cref="FetchingStatus.Unfetched"/> 状态，
+            /// 则尝试将节点置于 <see cref="FetchingStatus.Fetching" /> 状态。
             /// </summary>
             /// <param name="domainKey">
             /// 对此节点注册一个标志。用于表示此节点的某些关联
@@ -187,23 +201,23 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             /// 已经被探索。
             /// </param>
             /// <returns>
-            /// 如果成功将节点置于 <see cref="ExplorationStatus.Exploring" /> 状态，
+            /// 如果成功将节点置于 <see cref="FetchingStatus.Fetching" /> 状态，
             /// 则返回 true 。指示当前线程应当开始探索对应的节点。
             /// </returns>
-            public bool TryMarkAsExploring(ExplorationDomainKey domainKey)
+            public bool TryMarkAsFetching(FetchingDomainKey domainKey)
             {
                 if (domainKey == null) throw new ArgumentNullException(nameof(domainKey));
                 syncLock.EnterWriteLock();
                 try
                 {
-                    ExplorationStatus s;
+                    FetchingStatus s;
                     if (explorationStatusDict.TryGetValue(domainKey, out s))
                     {
-                        if (s != ExplorationStatus.Unexplored)
+                        if (s != FetchingStatus.Unfetched)
                             return false;
                     }
-                    explorationStatusDict[domainKey] = ExplorationStatus.Exploring;
-                    //Debug.WriteLine("Exploring-{0}: {1}", domainKey, this);
+                    explorationStatusDict[domainKey] = FetchingStatus.Fetching;
+                    //Debug.WriteLine("Fetching-{0}: {1}", domainKey, this);
                     return true;
                 }
                 finally
@@ -213,77 +227,54 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             }
 
             /// <summary>
-            /// 将当前节点标注为 <see cref="ExplorationStatus.Exploring" /> 状态。
-            /// 如果当前节点已经处于 <see cref="ExplorationStatus.Exploring" /> 状态，
-            /// 则会等待直到节点处于 <see cref="ExplorationStatus.Explored" /> 状态。
+            /// 将当前节点标注为 <see cref="FetchingStatus.Fetching" /> 状态。
+            /// 如果当前节点已经处于 <see cref="FetchingStatus.Fetching" /> 状态，
+            /// 则会等待直到节点处于 <see cref="FetchingStatus.Fetched" /> 状态。
             /// </summary>
             /// <param name="domainKey"></param>
             /// <returns>
-            /// 如果成功将节点置于 <see cref="ExplorationStatus.Exploring" /> 状态，
+            /// 如果成功将节点置于 <see cref="FetchingStatus.Fetching" /> 状态，
             /// 则任务会返回 true 。指示当前线程应当开始探索对应的节点。否则，如果当前节点
             /// 已经被探索，或正在探索，则任务会在探索结束后返回 false 。
             /// </returns>
-            public Task<bool> MarkAsExploringOrUntilExplored(ExplorationDomainKey domainKey)
+            public Task<bool> MarkAsFetchingOrUntilFetched(FetchingDomainKey domainKey)
             {
-                if (domainKey == null) throw new ArgumentNullException(nameof(domainKey));
-                syncLock.EnterWriteLock();
-                try
-                {
-                    ExplorationStatus s;
-                    if (explorationStatusDict.TryGetValue(domainKey, out s))
-                    {
-                        switch (s)
-                        {
-                            case ExplorationStatus.Unexplored:
-                                break;
-                            case ExplorationStatus.Explored:
-                                return Task.FromResult(false);
-                            case ExplorationStatus.Exploring:
-                                // Wait for exploration
-                                var tcs = explorationTaskCompletionSourceDict.GetOrAddNew(domainKey);
-                                return tcs.Task.ContinueWith(r => false);
-                        }
-                    }
-                    explorationStatusDict[domainKey] = ExplorationStatus.Exploring;
-                    return Task.FromResult(true);
-                }
-                finally 
-                {
-                    syncLock.ExitWriteLock();
-                }
+                if (TryMarkAsFetching(domainKey)) return Task.FromResult(true);
+                return UntilFetchedAsync(domainKey).ContinueWith(t => false);
             }
 
             /// <summary>
-            /// 如果当前节点处于 <see cref="ExplorationStatus.Exploring"/> 状态，
-            /// 则等待直到节点处于 <see cref="ExplorationStatus.Explored" /> 状态。
+            /// 如果当前节点处于 <see cref="FetchingStatus.Fetching"/> 状态，
+            /// 则等待直到节点处于 <see cref="FetchingStatus.Fetched" /> 状态。
             /// </summary>
             /// <returns>
-            /// 返回一个任务。如果当前节点处于 <see cref="ExplorationStatus.Unexplored"/>
+            /// 返回一个任务。如果当前节点处于 <see cref="FetchingStatus.Unfetched"/>
             /// 状态，则直接返回 false 。
             /// 否则会在（其他线程）探索结束后返回 <c>true</c>。
             /// </returns>
-            public Task<bool> UntilExploredAsync(ExplorationDomainKey domainKey)
+            public Task<bool> UntilFetchedAsync(FetchingDomainKey domainKey)
             {
                 if (domainKey == null) throw new ArgumentNullException(nameof(domainKey));
                 syncLock.EnterWriteLock();
                 try
                 {
-                    ExplorationStatus s;
+                    FetchingStatus s;
                     if (explorationStatusDict.TryGetValue(domainKey, out s))
                     {
                         switch (s)
                         {
-                            case ExplorationStatus.Exploring:
+                            case FetchingStatus.Fetching:
                                 // Wait for exploration
+                                //Debug.WriteLine("Wait-{0}: {1}", domainKey, this);
                                 var tcs = explorationTaskCompletionSourceDict.GetOrAddNew(domainKey);
                                 return tcs.Task.ContinueWith(r => true);
-                            case ExplorationStatus.Explored:
+                            case FetchingStatus.Fetched:
                                 return Task.FromResult(true);
                             default:
-                                return Task.FromResult(false);
+                                Debug.Assert(s == FetchingStatus.Unfetched);
+                                break;
                         }
                     }
-                    Debug.Assert(s == ExplorationStatus.Unexplored);
                     return Task.FromResult(false);
                 }
                 finally
@@ -293,17 +284,18 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             }
 
             /// <summary>
-            /// 如果当前节点处于 <see cref="ExplorationStatus.Exploring"/> 状态，
-            /// 则尝试将节点置于 <see cref="ExplorationStatus.Explored" /> 状态。
+            /// 如果当前节点处于 <see cref="FetchingStatus.Fetching"/> 状态，
+            /// 则尝试将节点置于 <see cref="FetchingStatus.Fetched" /> 状态。
             /// </summary>
-            public void MarkAsExplored(ExplorationDomainKey domainKey)
+            public void MarkAsFetched(FetchingDomainKey domainKey)
             {
                 if (domainKey == null) throw new ArgumentNullException(nameof(domainKey));
                 syncLock.EnterWriteLock();
                 try
                 {
-                    Debug.Assert(explorationStatusDict[domainKey] == ExplorationStatus.Exploring);
-                    explorationStatusDict[domainKey] = ExplorationStatus.Explored;
+                    Debug.Assert(explorationStatusDict[domainKey] == FetchingStatus.Fetching);
+                    explorationStatusDict[domainKey] = FetchingStatus.Fetched;
+                    //Debug.WriteLine("Fetched-{0}: {1}", domainKey, this);
                     var tcs = explorationTaskCompletionSourceDict.TryGetValue(domainKey);
                     if (tcs != null)
                     {
@@ -319,18 +311,18 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                 }
             }
 
-            public ExplorationStatus GetExplorationStatus(ExplorationDomainKey domainKey)
+            public FetchingStatus GetFetchingStatus(FetchingDomainKey domainKey)
             {
                 if (domainKey == null) throw new ArgumentNullException(nameof(domainKey));
                 syncLock.EnterReadLock();
                 try
                 {
-                    ExplorationStatus s;
+                    FetchingStatus s;
                     if (explorationStatusDict.TryGetValue(domainKey, out s))
                     {
                         return s;
                     }
-                    return ExplorationStatus.Unexplored;
+                    return FetchingStatus.Unfetched;
                 }
                 finally
                 {
@@ -350,7 +342,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         /// 用于在 <see cref="NodeStatus"/> 中标注当前节点已经探索过的内容。
         /// 这是一个键类型，因而应当是不可变的。
         /// </summary>
-        private class ExplorationDomainKey : IEquatable<ExplorationDomainKey>
+        private class FetchingDomainKey : IEquatable<FetchingDomainKey>
         {
             /// <summary>
             /// 指示当前对象是否等于同一类型的另一个对象。
@@ -359,7 +351,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             /// 如果当前对象等于 <paramref name="other"/> 参数，则为 true；否则为 false。
             /// </returns>
             /// <param name="other">与此对象进行比较的对象。</param>
-            public bool Equals(ExplorationDomainKey other)
+            public bool Equals(FetchingDomainKey other)
             {
                 if (this == other) return true;
                 if (other == null) return false;
@@ -376,7 +368,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             /// <param name="obj">要与当前对象进行比较的对象。</param>
             public override bool Equals(object obj)
             {
-                var other = obj as ExplorationDomainKey;
+                var other = obj as FetchingDomainKey;
                 if (other == null) return false;
                 return Equals(other);
             }
@@ -398,7 +390,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             /// <remarks>
             /// 调用方已经保证 <paramref name="other"/> 与当前对象类型相同。
             /// </remarks>
-            protected virtual bool EqualsCore(ExplorationDomainKey other)
+            protected virtual bool EqualsCore(FetchingDomainKey other)
             {
                 Debug.Assert(GetType() == other.GetType());
                 return true;
@@ -414,22 +406,22 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         /// 使用一个名称来区分探索领域。适用于”局部探索“、
         /// ”作者所有论文探索“的标注。
         /// </summary>
-        private class TokenExplorationDomainKey : ExplorationDomainKey
+        private class TokenFetchingDomainKey : FetchingDomainKey
         {
             /// <summary>
             /// 探索领域的名称。
             /// </summary>
             public string Name { get; }
 
-            public TokenExplorationDomainKey(string name)
+            public TokenFetchingDomainKey(string name)
             {
                 if (name == null) throw new ArgumentNullException(nameof(name));
                 Name = name;
             }
 
-            protected override bool EqualsCore(ExplorationDomainKey other)
+            protected override bool EqualsCore(FetchingDomainKey other)
             {
-                return base.EqualsCore(other) && Name == ((TokenExplorationDomainKey) other).Name;
+                return base.EqualsCore(other) && Name == ((TokenFetchingDomainKey) other).Name;
             }
 
             protected override int GetHashCodeCore()
@@ -454,22 +446,22 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         /// 尤其是指使用 <see cref="ExploreInterceptionNodesInternalAsync"/> 进行探索的情况。
         /// 注意，探索的方向为 被标记的节点 指向 <see cref="AnotherNodeId"/> 对应的节点。
         /// </summary>
-        private class InterceptionExplorationDomainKey : ExplorationDomainKey
+        private class InterceptionFetchingDomainKey : FetchingDomainKey
         {
             /// <summary>
             /// 被探索的另一个节点的 Id 。
             /// </summary>
             public long AnotherNodeId { get; }
 
-            public InterceptionExplorationDomainKey(long anotherNodeId)
+            public InterceptionFetchingDomainKey(long anotherNodeId)
             {
                 AnotherNodeId = anotherNodeId;
             }
 
-            protected override bool EqualsCore(ExplorationDomainKey other)
+            protected override bool EqualsCore(FetchingDomainKey other)
             {
                 return base.EqualsCore(other) &&
-                       AnotherNodeId == ((InterceptionExplorationDomainKey) other).AnotherNodeId;
+                       AnotherNodeId == ((InterceptionFetchingDomainKey) other).AnotherNodeId;
             }
 
             protected override int GetHashCodeCore()

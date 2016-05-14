@@ -23,6 +23,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikConsole
         {
             if (Environment.Is64BitProcess)
                 Console.WriteLine("64位进程。");
+            //FindPathsAsync(57898110, 2014261844).Wait();
             while (true)
             {
                 Console.WriteLine();

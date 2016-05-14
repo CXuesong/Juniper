@@ -20,12 +20,10 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             // Node1 -- Node3 -- Node4 -- Node2
             var paths = new List<KgNode[]>();
             var author1 = node1 as AuthorNode;
-            // 手动探索 node1 ，得到其之后的所有节点。
-            await LocalExploreAsync(node1);
             if (author1 != null)
             { 
                 // Author 还需要补刀。
-                await ExploreAuthorsPapersAsync(new[] {author1});
+                await FetchAuthorsPapersAsync(new[] {author1});
             }
             // 获取 Node1 出发所有可能的 Node3
             var nodes3 = graph.AdjacentOutVertices(node1.Id)

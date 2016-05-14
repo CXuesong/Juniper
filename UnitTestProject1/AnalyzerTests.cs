@@ -1,5 +1,5 @@
 ﻿#define CACHE_TEST_ENABLED
-//#define SKIP_HUGE_TEST_CASES
+#define SKIP_HUGE_TEST_CASES
 
 using System;
 using System.Collections;
@@ -57,6 +57,30 @@ namespace UnitTestProject1
             return paths;
         }
 
+        private void TraceAsJson(IReadOnlyCollection<KgNode[]> paths)
+        {
+            // 返回只要 Id 就可以了。
+            // 由于结构比较简单，所以可以强行 json 。
+            var resultBuilder = new StringBuilder("[");
+            var isFirst = true;
+            foreach (var path in paths)
+            {
+                if (isFirst)
+                    isFirst = false;
+                else
+                    resultBuilder.Append(",\n");
+                resultBuilder.Append("[");
+                for (int j = 0; j < path.Length; j++)
+                {
+                    if (j > 0) resultBuilder.Append(",");
+                    resultBuilder.Append(path[j].Id);
+                }
+                resultBuilder.Append("]");
+            }
+            resultBuilder.Append("]");
+            Trace.WriteLine(resultBuilder.ToString());
+        }
+
         private void AssertPathsCount(IReadOnlyCollection<KgNode[]> paths, int countAtLeast)
         {
             if (paths.Count < countAtLeast)
@@ -90,6 +114,7 @@ namespace UnitTestProject1
             // 2157025439: what do people ask their social networks and why a survey study of status message q a behavior
             // 1982462162: Jaime Teevan
             var paths = FindPaths(2157025439, 1982462162, true);
+            //TraceAsJson(paths);
             // 1/2 hop + 3-hop
             AssertPathsCount(paths, 2 + 259);
             AssertPathExists(paths, 2157025439, 1982462162);
@@ -197,7 +222,6 @@ namespace UnitTestProject1
             var paths = FindPaths(2175015405, 2121939561, true);
             AssertPathsCount(paths, 122);
         }
-
 
         /// <summary>
         /// 钟泽轩 的测试样例。

@@ -165,8 +165,24 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         /// </summary>
         public string Dump()
         {
-                        return string.Join("\n", vertices.SelectMany(p =>
+            return string.Join("\n", vertices.SelectMany(p =>
                 p.Value.AdjacentOutVertices.Select(v2 => $"{p.Key}, {v2}")));
+        }
+
+        /// <summary>
+        /// 返回指定路径的字符串表示。可以用来判断路径是否连通。
+        /// 调试使用。
+        /// </summary>
+        public string VisualizeBranch(params TVertex[] vertices)
+        {
+            if (vertices.Length < 2) return vertices.FirstOrDefault()?.ToString();
+            var s = vertices[0]?.ToString();
+            for (var i = 1; i < vertices.Length; i++)
+            {
+                s += Contains(vertices[i - 1], vertices[i]) ? " -- " : "  ";
+                s += vertices[i];
+            }
+            return s;
         }
 
         /// <summary>

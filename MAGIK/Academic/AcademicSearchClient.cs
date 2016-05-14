@@ -153,56 +153,55 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
             return result;
         }
 
+
         /// <summary>
         /// 异步计算查询表达式，并进行学术文献的检索。启用自动分页。
         /// </summary>
-        public Task<ICollection<T>> EvaluateAsync<T>(string expression, int count, Func<EvaluationResult, Task<T>> callback)
+        public ParitionedPromise<EvaluationResult> EvaluateAsync(string expression, int count)
         {
-            return EvaluateAsync<T>(expression, count, null, null, callback);
+            return EvaluateAsync(expression, count, null, null);
         }
 
         /// <summary>
         /// 异步计算查询表达式，并进行学术文献的检索。启用自动分页。
         /// </summary>
-        public Task<ICollection<T>> EvaluateAsync<T>(string expression, int count, string attributes, Func<EvaluationResult, Task<T>> callback)
+        public ParitionedPromise<EvaluationResult> EvaluateAsync(string expression, int count, string orderBy, string attributes)
         {
-            return EvaluateAsync<T>(expression, count, null, attributes, callback);
+            var promise = new ParitionedPromise<EvaluationResult>();
+            promise.SetProducerTask(EvaluateAsync(expression, count, orderBy, attributes, promise));
+            return promise;
         }
 
         /// <summary>
         /// 异步计算查询表达式，并进行学术文献的检索。启用自动分页。
         /// </summary>
-        public async Task<ICollection<T>> EvaluateAsync<T>(string expression, int count, string orderBy, string attributes, Func<EvaluationResult, Task<T>> callback)
+        private async Task EvaluateAsync(string expression, int count, string orderBy, string attributes, ParitionedPromise<EvaluationResult> promise)
         {
+            if (promise == null) throw new ArgumentNullException(nameof(promise));
+            // 处理明显小于一页的情况。
             if (count < PagingSize)
             {
                 var er = await EvaluateAsync(expression, count, 0, orderBy, attributes);
-                if (er.Entities.Count > 0) await callback(er);
+                if (er.Entities.Count > 0) promise.DeclarePartitionFinished(er);
+                return;
             }
 #if TRACE
             Logger.AcademicSearch.Enter(this, $"{expression}, [1,{count}] Paged");
 #endif
             var noMoreResults = false;
             int results = 0;
-            var callbackResults = new List<T>(Math.Min(count/PagingSize + 1, 32));
             EvaluationResult[] pages = null;
             var offset = 0;
             var currentConcurrentPagingCount = 1;
             while (true)
             {
 // sessions
-                Task<T[]> callbackTask = null;
                 // 如果有回调，先执行回调。
                 if (pages != null)
                 {
-                    callbackTask = Task.WhenAll(pages.Where(er => er.Entities.Count > 0).Select(callback));
+                    foreach (var p in pages) promise.DeclarePartitionFinished(p);
                     // 已经不需要再下载页面了。
-                    // 等待前一页的回调函数返回。
-                    if (noMoreResults || offset >= count)
-                    {
-                        callbackResults.AddRange(await callbackTask);
-                        break;
-                    }
+                    if (noMoreResults || offset >= count) break;
                 }
                 // 顺便下载页面。
                 var sessionPages = Math.Min((count - offset)/PagingSize, currentConcurrentPagingCount);
@@ -228,14 +227,10 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
                 // 如果还有结果，那么下一次试着多下载几页。
                 if (currentConcurrentPagingCount < ConcurrentPagingCount)
                     currentConcurrentPagingCount = Math.Min(currentConcurrentPagingCount*2, ConcurrentPagingCount);
-                // 等待前一页的回调函数返回。
-                if (callbackTask != null)
-                    callbackResults.AddRange(await callbackTask);
             }
 #if TRACE
             Logger.AcademicSearch.Exit(this, $"{expression}; {results} Entities in total. {(noMoreResults ? "" : " Truncated.")}");
 #endif
-            return callbackResults;
         }
 
         /// <summary>
