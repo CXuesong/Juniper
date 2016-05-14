@@ -22,7 +22,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         private NodeStatus GetStatus(long id)
         {
             Debug.Assert(graph.Contains(id));
-            return status.GetOrAdd(id, i => new NodeStatus(id));
+            return _Status.GetOrAdd(id, i => new NodeStatus(id));
         }
 
         /// <summary>
@@ -55,21 +55,36 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
 
         /// <summary>
         /// 简单地注册一个节点。不执行任何探索。
+        /// 如果节点已经存在，则返回现有的节点。
         /// </summary>
-        private void RegisterNode(Entity entity)
+        private PaperNode RegisterNode(Entity entity)
         {
-            if (graph.Contains(entity.Id))
-            {
-                // 注意，我们总应当先注册 nodes ，再注册 graph 。
-                // 判断时要反过来。
-                Debug.Assert(nodes.ContainsKey(entity.Id));
-            }
-            else
-            {
-                nodes.TryAdd(entity.Id, KgNode.Create(entity));
-                graph.Add(entity.Id);
+            var nd = nodes.GetOrAdd(entity.Id, id => new PaperNode(id, null));
+            graph.Add(entity.Id);
+            return (PaperNode) nd;
+        }
 
-            }
+        /// <summary>
+        /// 简单地注册一个节点。不执行任何探索。
+        /// 如果节点已经存在，则返回现有的节点。
+        /// </summary>
+        private AuthorNode RegisterAuthorNode(Author author)
+        {
+            var nd = nodes.GetOrAdd(author.Id, id => new AuthorNode(id, null));
+            graph.Add(author.Id);
+            return (AuthorNode)nd;
+        }
+
+        /// <summary>
+        /// 简单地注册一个节点。不执行任何探索。
+        /// 如果节点已经存在，则返回现有的节点。
+        /// </summary>
+        private AffiliationNode RegisterAffiliationNode(Author author)
+        {
+            Debug.Assert(author.AffiliationId != null);
+            var nd = nodes.GetOrAdd(author.AffiliationId.Value, id => new AffiliationNode(id, null));
+            graph.Add(author.Id);
+            return (AffiliationNode) nd;
         }
 
         /// <summary>
@@ -104,12 +119,6 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                 return;
             ExplorePaperUnsafe(entity);
             s.MarkAsFetched(NodeStatus.PaperFetching);
-        }
-
-        private IEnumerable<NodeStatus> DumpExploring()
-        {
-            return status.Values.Where(
-                    n => n.GetFetchingStatus(NodeStatus.PaperFetching) == FetchingStatus.Fetching);
         }
 
         /// <summary>
@@ -217,7 +226,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                                 // 此处还可以注册 paper 与其所有作者之间的关系。
                                 // 这样做的好处是，万一 author1 和 author2 同时写了一篇论文。
                                 // 在这里就可以发现了。
-                                RegisterNode(KgNode.Create(et));
+                                RegisterNode(et);
                                 var localExploreTask = ExplorePaperAsync(et);
                                 // 为检索结果里的所有作者注册所有可能的机构。
                                 // 这里比较麻烦，因为一个作者可以属于多个机构，所以
@@ -226,10 +235,8 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                                 foreach (var au in et.Authors)
                                 {
                                     if (au.AffiliationId == null) continue;
-                                    var author = KgNode.CreateAuthor(au);
-                                    var affiliation = KgNode.CreateAffiliation(au);
-                                    RegisterNode(author);
-                                    RegisterNode(affiliation);
+                                    var author = RegisterAuthorNode(au);
+                                    var affiliation = RegisterAffiliationNode(au);
                                     RegisterEdge(author, affiliation);
                                 }
                                 await localExploreTask;

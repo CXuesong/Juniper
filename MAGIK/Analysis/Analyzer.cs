@@ -21,14 +21,14 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         // 不要使用 DirectedGraph<KgNode> 。否则在试图根据 Id 查找节点信息时可能会遇到麻烦。
         private readonly DirectedGraph<long> graph = new DirectedGraph<long>();
 
-        // 保存已经发现的节点。
+        // 保存已经发现节点的Id、类型，以及可选的名称。
         private readonly ConcurrentDictionary<long, KgNode> nodes = new ConcurrentDictionary<long, KgNode>();
 
         // 保存节点的可变状态。
         // 注意 graph 和 exploredNodes 集合可以变化，但集合中的每个项目
         // 例如以 long 表示的节点编号，和每个 KgNode 实例的内容是不可变的。
         // 因此，使用 status 映射处理这些可变状态。
-        private readonly ConcurrentDictionary<long, NodeStatus> status = new ConcurrentDictionary<long, NodeStatus>();
+        private readonly ConcurrentDictionary<long, NodeStatus> _Status = new ConcurrentDictionary<long, NodeStatus>();
 
         private readonly ConcurrentDictionary<long, int> _CitationCountDict = new ConcurrentDictionary<long, int>();
 
