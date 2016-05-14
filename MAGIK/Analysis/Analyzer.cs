@@ -31,6 +31,11 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
 
         private readonly ConcurrentDictionary<long, int> _CitationCountDict = new ConcurrentDictionary<long, int>();
 
+#if DEBUG
+        private KgNode _Node1;
+        private KgNode _Node2;
+#endif
+
         public Analyzer(AcademicSearchClient asClient)
             : base(asClient)
         {
@@ -61,6 +66,10 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             var node2 = nodes[1];
             if (node1 == null) throw new ArgumentException($"在 MAG 中找不到指定的 Id/AuId：{id1}。", nameof(id1));
             if (node2 == null) throw new ArgumentException($"在 MAG 中找不到指定的 Id/AuId：{id2}。", nameof(id2));
+#if DEBUG
+            _Node1 = node1;
+            _Node2 = node2;
+#endif
             // 开始搜索。
             var hops = await Task.WhenAll(
                 FindHop12PathsAsync(node1, node2),
@@ -184,10 +193,10 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             // 在 DEBUG 模式下，完全信息包括节点的名称和此节点的邻节点（保存在 Graph 中，
             //      但很可能不在 exploredNodes 中，因为这些邻节点还没有被探索）。
             // 在 RELEASE 模式下，完全信息仅包括节点的邻节点。
-            private readonly Dictionary<FetchingDomainKey, FetchingStatus> explorationStatusDict 
+            private readonly Dictionary<FetchingDomainKey, FetchingStatus> fetchingStatusDict 
                 = new Dictionary<FetchingDomainKey, FetchingStatus>();
             // 约定：在任务结束后，TaskCompletionSource 应当返回 true 。
-            private readonly Dictionary<FetchingDomainKey, TaskCompletionSource<bool>> explorationTaskCompletionSourceDict
+            private readonly Dictionary<FetchingDomainKey, TaskCompletionSource<bool>> fetchingTaskCompletionSourceDict
                 = new Dictionary<FetchingDomainKey, TaskCompletionSource<bool>>();
             private ReaderWriterLockSlim syncLock = new ReaderWriterLockSlim();
 #if DEBUG
@@ -195,7 +204,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
 
             public override string ToString()
             {
-                return _NodeId + ";" + string.Join(";", explorationStatusDict.Select(p => p.Key + "," + p.Value));
+                return _NodeId + ";" + string.Join(";", fetchingStatusDict.Select(p => p.Key + "," + p.Value));
             }
 #endif
 
@@ -219,13 +228,13 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                 try
                 {
                     FetchingStatus s;
-                    if (explorationStatusDict.TryGetValue(domainKey, out s))
+                    if (fetchingStatusDict.TryGetValue(domainKey, out s))
                     {
                         if (s != FetchingStatus.Unfetched)
                             return false;
                     }
-                    explorationStatusDict[domainKey] = FetchingStatus.Fetching;
-                    //Debug.WriteLine("Fetching-{0}: {1}", domainKey, this);
+                    fetchingStatusDict[domainKey] = FetchingStatus.Fetching;
+                    Debug.WriteLine("Fetching-{0}: {1} @ {2}", domainKey, this, Task.CurrentId);
                     return true;
                 }
                 finally
@@ -267,14 +276,14 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                 try
                 {
                     FetchingStatus s;
-                    if (explorationStatusDict.TryGetValue(domainKey, out s))
+                    if (fetchingStatusDict.TryGetValue(domainKey, out s))
                     {
                         switch (s)
                         {
                             case FetchingStatus.Fetching:
                                 // Wait for exploration
-                                //Debug.WriteLine("Wait-{0}: {1}", domainKey, this);
-                                var tcs = explorationTaskCompletionSourceDict.GetOrAddNew(domainKey);
+                                Debug.WriteLine("Wait-{0}: {1} @ {2}", domainKey, this, Task.CurrentId);
+                                var tcs = fetchingTaskCompletionSourceDict.GetOrAddNew(domainKey);
                                 return tcs.Task.ContinueWith(r => true);
                             case FetchingStatus.Fetched:
                                 return Task.FromResult(true);
@@ -301,16 +310,16 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                 syncLock.EnterWriteLock();
                 try
                 {
-                    Debug.Assert(explorationStatusDict[domainKey] == FetchingStatus.Fetching);
-                    explorationStatusDict[domainKey] = FetchingStatus.Fetched;
-                    //Debug.WriteLine("Fetched-{0}: {1}", domainKey, this);
-                    var tcs = explorationTaskCompletionSourceDict.TryGetValue(domainKey);
+                    Debug.Assert(fetchingStatusDict[domainKey] == FetchingStatus.Fetching);
+                    fetchingStatusDict[domainKey] = FetchingStatus.Fetched;
+                    Debug.WriteLine("Fetched-{0}: {1} @ {2}", domainKey, this, Task.CurrentId);
+                    var tcs = fetchingTaskCompletionSourceDict.TryGetValue(domainKey);
                     if (tcs != null)
                     {
                         // 为什么是 true ？ 
                         // 参阅 explorationTaskCompletionSourceDict 声明处的约定。
                         tcs.SetResult(true);
-                        explorationTaskCompletionSourceDict.Remove(domainKey);
+                        fetchingTaskCompletionSourceDict.Remove(domainKey);
                     }
                 }
                 finally
@@ -326,7 +335,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                 try
                 {
                     FetchingStatus s;
-                    if (explorationStatusDict.TryGetValue(domainKey, out s))
+                    if (fetchingStatusDict.TryGetValue(domainKey, out s))
                     {
                         return s;
                     }

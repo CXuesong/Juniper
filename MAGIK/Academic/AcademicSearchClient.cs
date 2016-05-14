@@ -251,6 +251,8 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
                     EvaluateAsync(expression, PagingSize, offset1 + i*PagingSize, orderBy, attributes)
                         .ContinueWith(t =>
                         {
+                            if (t.Exception != null)
+                                throw t.Exception;
                             if (t.Result.Entities.Count > 0)
                             {
                                 results += t.Result.Entities.Count;

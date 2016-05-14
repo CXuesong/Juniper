@@ -44,11 +44,13 @@ namespace UnitTestProject1
                 Assert.AreEqual(id1, p[0].Id);
                 Assert.AreEqual(id2, p[p.Length - 1].Id);
             }
+            TraceAsJson(paths);
 #if CACHE_TEST_ENABLED
             var sw = Stopwatch.StartNew();
             var paths2 = TestUtility.AwaitSync(a.FindPathsAsync(id1, id2));
             sw.Stop();
             Trace.WriteLine("Cached: " + sw.Elapsed);
+            TraceAsJson(paths2);
             Assert.AreEqual(paths.Count, paths2.Count);
             Assert.IsTrue(paths.SequenceEqual(paths2, ArrayEqualityComparer<KgNode>.Default));
             Trace.WriteLine(a.DumpStatistics());
@@ -339,16 +341,10 @@ namespace UnitTestProject1
             AssertPathsCount(paths, 135);
         }
 
-        [TestMethod]
+        //[TestMethod]
         public void AnalyzerTestMethodX4()
         {
-            var paths = FindPaths(1912875929, 2292217923, true);
-            AssertPathsCount(paths, 135);
-        }
-
-        [TestMethod]
-        public void AnalyzerTestMethodX5()
-        {
+            // 05-15    2292217923 消失了……
             var paths = FindPaths(1912875929, 2292217923, true);
             AssertPathsCount(paths, 35);
         }

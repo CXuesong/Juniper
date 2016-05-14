@@ -1,4 +1,4 @@
-﻿//#define ALLOW_CACHE
+﻿#define ALLOW_CACHE
 
 using System;
 using System.Collections.Generic;
@@ -23,7 +23,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikConsole
         {
             if (Environment.Is64BitProcess)
                 Console.WriteLine("64位进程。");
-            //FindPathsAsync(57898110, 2014261844).Wait();
+            FindPathsAsync(2157025439, 2061503185).Wait();
             while (true)
             {
                 Console.WriteLine();

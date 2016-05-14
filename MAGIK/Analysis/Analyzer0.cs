@@ -366,7 +366,18 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         {
             // 先尝试在节点缓存中查找。
             KgNode existing;
-            if (nodes.TryGetValue(id, out existing)) return existing;
+            if (nodes.TryGetValue(id, out existing))
+            {
+                var paper = existing as PaperNode;
+                if (paper != null && await GetStatus(id).UntilFetchedAsync(NodeStatus.PaperFetching))
+                    return existing;    // We're done.
+                if (paper == null)
+                {
+                    // Author, etc.
+                    // We're done.
+                    return existing;
+                }
+            }
             // 去网上找找。
             var er = await SearchClient.EvaluateAsync(SEB.EntityOrAuthorIdEquals(id), 2, 0);
             if (er.Entities.Count == 0) return null;
@@ -384,14 +395,11 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                 var au = et.Authors.FirstOrDefault(a => a.Id == id);
                 if (au != null)
                 {
-                    var author = KgNode.CreateAuthor(au);
-                    RegisterNode(author);
-                    return author;
+                    return RegisterAuthorNode(au);
                 }
                 if (et.Id == id)
                 {
-                    var paper = KgNode.Create(et);
-                    RegisterNode(paper);
+                    var paper = RegisterNode(et);
                     await ExplorePaperAsync(et);
                     return paper;
                 }
@@ -469,7 +477,6 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             IReadOnlyCollection<AuthorNode> authors1 = null;
             IReadOnlyCollection<AffiliationNode> affiliations1 = null;
             IReadOnlyCollection<FieldOfStudyNode> foss1 = null;
-            // 在进行上下文相关探索之前，先对两个节点进行局部探索。
             if (nodes1ToExplore.Length == 1)
             {
                 node1 = nodes1ToExplore[0];
@@ -488,7 +495,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                 if (nodes1ToExplore[0] is PaperNode)
                 {
                     papers1 = nodes1ToExplore.CollectionCast<PaperNode>();
-                    // 需要调查 papers1 的 AuId JId CId FId
+                    // 需要调查 papers1 的 AuId JId CId FId 等联结关系。
                     await FetchPapersAsync(papers1);
                 }
                 else if (nodes1ToExplore[0] is AuthorNode)
@@ -512,17 +519,23 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             if (paper2 != null)
                 Debug.Assert(GetStatus(paper2.Id)
                     .GetFetchingStatus(NodeStatus.PaperFetching) == FetchingStatus.Fetched);
+            long[] papers1References = null;
+            if (papers1 != null)
+            {
+                // 注意，参考文献(或是作者——尽管在这里不需要)很可能会重复。
+                papers1References = papers1.SelectMany(p1 => graph
+                    .AdjacentOutVertices(p1.Id))
+                    .Distinct().ToArray();
+            }
             // searchConstraint : 建议尽量简短，因为 FromPapers1 的约束可能
             // 会是 100 个条件的并。
-            Func<string, Task> exploreFromPapers1References = searchConstraint =>
+            Func<string, Task> FetchFromPapers1References = searchConstraint =>
             {
                 // 注意，我们是来做全局搜索的。像是 Id -> AuId -> Id
-                // 这种探索在局部探索阶段应该已经解决了。
+                // 这种探索在探索论文时应该已经解决了。
                 Debug.Assert(papers1 != null);
-                var tasks = papers1.SelectMany(p1 => graph
-                    .AdjacentOutVertices(p1.Id))
-                    .Distinct() // 注意，参考文献(或是作者——尽管在这里不需要)很可能会重复。
-                    .Select(id3 => nodes[id3])
+                Debug.Assert(papers1References != null);
+                var tasks = papers1References.Select(id3 => nodes[id3])
                     .OfType<PaperNode>()
                     .Partition(SEB.MaxChainedIdCount)
                     .Select(nodes3 => FetchPapersAsync(nodes3, searchConstraint));
@@ -533,18 +546,20 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                 // 带有 作者/研究领域/会议/期刊 等属性限制，
                 // 搜索 >引用< 中含有 paper2 的论文 Id。
                 // attributeConstraint 可以长一些。
-                Func<string, Task> FetchCitationsToPaper2WithAttributes = async attributeConstraint =>
+                Func<string, ConcurrentPagingMode, Task> FetchCitationsToPaper2WithAttributes = async (attributeConstraint, pagingMode) =>
                 {
                     // 一般来说， Paper2 肯定就是题目中的终结点，
                     // 因此我们是知道其具体信息的。
                     var maxPapers = CitationCount(paper2);
                     var strategy = maxPapers == null
                         ? ConcurrentPagingMode.Optimistic
-                        : ConcurrentPagingMode.Pessimistic;
+                        : pagingMode;
                     if (maxPapers == null) maxPapers = Assumptions.PaperMaxCitations;
-                    await SearchClient.EvaluateAsync(SEB.And(
-                        attributeConstraint, SEB.ReferenceIdContains(paper2.Id)),
-                        maxPapers.Value, strategy).PartitionContinueWith(async page =>
+                    var expr = SEB.ReferenceIdContains(paper2.Id);
+                    if (attributeConstraint != null)
+                        expr = SEB.And(expr, attributeConstraint);
+                    await SearchClient.EvaluateAsync(expr, maxPapers.Value, strategy)
+                        .PartitionContinueWith(async page =>
                         {
                             await Task.WhenAll(page.Entities.Select(entity =>
                             {
@@ -556,7 +571,20 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                 if (papers1 != null)
                 {
                     // Id1 -> Id3 -> Id2
-                    await exploreFromPapers1References(SEB.ReferenceIdContains(paper2.Id));
+                    //Trace.WriteLine("Fetch From Papers1 " + papers1.Count);
+                    var citations = CitationCount(paper2);
+                    if (citations < papers1References.Length)
+                    {
+                        // 从 Id2 方向向左探索 Id1 可能会好一些。
+                        // 注意到 Left to Right 一次只能探索约 100 篇
+                        // Right to Left 一次可以探索约 1000 篇，就是有点儿慢。
+                        File.AppendAllText("D:\\aaa.log", $"Alt\t{_Node1} -- {_Node2}\n");
+                        await FetchCitationsToPaper2WithAttributes(null, ConcurrentPagingMode.Pessimistic);
+                    }
+                    else
+                    {
+                        await FetchFromPapers1References(SEB.ReferenceIdContains(paper2.Id));
+                    }
                 }
                 else if (authors1 != null)
                 {
@@ -564,7 +592,10 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                     await Task.WhenAll(authors1
                         .Select(n => n.Id)
                         .Partition(SEB.MaxChainedAuIdCount)
-                        .Select(id1s => FetchCitationsToPaper2WithAttributes(SEB.AuthorIdIn(id1s))));
+                        .Select(
+                            id1s =>
+                                FetchCitationsToPaper2WithAttributes(SEB.AuthorIdIn(id1s),
+                                    ConcurrentPagingMode.Optimistic)));
                 }
                 else if (affiliations1 != null)
                 {
@@ -580,17 +611,24 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                     // F.FId <-> Id -> Id
                     await Task.WhenAll(foss1.Select(fos => fos.Id)
                         .Partition(SEB.MaxChainedFIdCount)
-                        .Select(fids => FetchCitationsToPaper2WithAttributes(SEB.FieldOfStudyIdIn(fids))));
+                        .Select(
+                            fids =>
+                                FetchCitationsToPaper2WithAttributes(SEB.FieldOfStudyIdIn(fids),
+                                    ConcurrentPagingMode.Pessimistic)));
                 }
                 else if (node1 is ConferenceNode)
                 {
                     // C.CId <-> Id -> Id
-                    await FetchCitationsToPaper2WithAttributes(SEB.ConferenceIdEquals(node1.Id));
+                    await
+                        FetchCitationsToPaper2WithAttributes(SEB.ConferenceIdEquals(node1.Id),
+                            ConcurrentPagingMode.Optimistic);
                 }
                 else if (node1 is JournalNode)
                 {
                     // J.JId <-> Id -> Id
-                    await FetchCitationsToPaper2WithAttributes(SEB.JournalIdEquals(node1.Id));
+                    await
+                        FetchCitationsToPaper2WithAttributes(SEB.JournalIdEquals(node1.Id),
+                            ConcurrentPagingMode.Optimistic);
                 }
                 else
                 {
@@ -622,7 +660,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                 if (papers1 != null)
                 {
                     // Id1 -> Id3 -> AA.AuId2
-                    await exploreFromPapers1References(SEB.AuthorIdContains(node2.Id));
+                    await FetchFromPapers1References(SEB.AuthorIdContains(node2.Id));
                 }
                 else if (authors1 != null)
                 {

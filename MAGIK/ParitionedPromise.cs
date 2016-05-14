@@ -57,8 +57,12 @@ namespace Microsoft.Contests.Bop.Participants.Magik
             buffer = null;
             if (_ProducerTask == null || _WhenCompletedTask != null)
                 throw new InvalidOperationException();
-            _WhenCompletedTask = _ProducerTask.ContinueWith((t, at) =>
-                Task.WhenAll((IList<Task>) at), _AssignedTasks);
+            _WhenCompletedTask = Task.WhenAll(_AssignedTasks.Concat(new[] {_ProducerTask}))
+                .ContinueWith(t =>
+                {
+                    if (t.Exception != null)
+                        throw t.Exception;
+                });
             return _WhenCompletedTask;
         }
 
