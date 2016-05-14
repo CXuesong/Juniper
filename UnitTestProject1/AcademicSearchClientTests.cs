@@ -132,11 +132,11 @@ namespace UnitTestProject1
         [TestMethod]
         public void ASClientTestMethod6()
         {
-            const int queryCount = 200;
             var client = GlobalServices.CreateASClient();
             client.PagingSize = 20;
             var result = new List<CalcHistogramResult>();
-            client.CalcHistogramAsync("Composite(AA.AuN=='jaime teevan')", queryCount, "AA.AfN")
+            // 注意：我们得到的其实是 co-author affiliations
+            client.CalcHistogramAsync("Composite(AA.AuN=='jaime teevan')", "AA.AfN")
                 .PartitionContinueWith(hr =>
                 {
                     result.Add(hr);

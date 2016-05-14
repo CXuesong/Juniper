@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -125,74 +126,97 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         /// 直接进行局部探索，不加锁，不检查是否探索过。
         /// </summary>
         /// <remarks>此函数应当由 LocalExplore 系列函数调用。</remarks>
-        private void ExplorePaperUnsafe(KgNode sourceNode, IEnumerable<KgNode> adjacentNodes)
-        {
-            if (sourceNode == null) throw new ArgumentNullException(nameof(sourceNode));
-            if (adjacentNodes == null) throw new ArgumentNullException(nameof(adjacentNodes));
-            // 探索是指从某节点向外延展。那么 某节点 肯定是已经注册过的。
-            Debug.Assert(graph.Contains(sourceNode.Id));
-            foreach (var an in adjacentNodes)
-            {
-                RegisterNode(an);
-                RegisterEdge(sourceNode, an);
-            }
-        }
-
-        /// <summary>
-        /// 直接进行局部探索，不加锁，不检查是否探索过。
-        /// </summary>
-        /// <remarks>此函数应当由 LocalExplore 系列函数调用。</remarks>
         private void ExplorePaperUnsafe(Entity entity)
         {
+            // 探索是指从某节点向外延展。那么 某节点 肯定是已经注册过的。
+            Debug.Assert(graph.Contains(entity.Id));
             // 记录被引用次数。
             if (entity.CitationCount > 0) _CitationCountDict[entity.Id] = entity.CitationCount;
-            ExplorePaperUnsafe(nodes[entity.Id], KgNode.EnumerateLocalAdjacents(entity));
+            var node = nodes[entity.Id];
+            foreach (var an in KgNode.EnumerateLocalAdjacents(entity))
+            {
+                RegisterNode(an);
+                RegisterEdge(node, an);
+            }
         }
 
         /// <summary>
         /// 同时探索多个节点。适用于文章节点。注意，此函数仅在查询方面进行了优化，
         /// 如果其他线程正在探索此节点，则等待此节点探索完毕。
         /// </summary>
-        private async Task FetchPapersAsync(IReadOnlyCollection<KgNode> paperNodes, string constraint = null)
+        private async Task FetchPapersAsync(IReadOnlyCollection<KgNode> paperNodes)
         {
             Debug.Assert(paperNodes != null);
             // 注意，有些节点可能仍处于 正在探索 的状态。
-            // 需要在返回前等待这些正在探索的节点。
-            var nodesToFetch = paperNodes
-                .Where(n => GetStatus(n.Id).GetFetchingStatus(NodeStatus.PaperFetching) == FetchingStatus.Unfetched)
+            //      需要在返回前等待这些正在探索的节点。
+            var nodesToFetch = paperNodes.Where(n => GetStatus(n.Id).TryMarkAsFetching(NodeStatus.PaperFetching))
                 .ToArray();
-            //if (nodesToExplore.Length == 0) goto WAIT_FOR_EXPLORATIONS;
-            // 区分“已经下载详细信息”的实体和“需要下载详细信息”的实体。
-            // 不不不，“已经下载详细信息”的实体肯定已经探索过了。
+            if (nodesToFetch.Length == 0) goto WAIT_FOR_EXPLORATIONS;
+            await Task.WhenAll(nodesToFetch.Select(n => n.Id)
+                .Partition(SEB.MaxChainedIdCount)
+                .Select(ids =>
+                {
+                    // 假定 Partition 返回的是 IList / ICollection
+                    var idc = (ICollection<long>)ids;
+                    return SearchClient.EvaluateAsync(SEB.EntityIdIn(idc),
+                        SEB.MaxChainedIdCount,ConcurrentPagingMode.Pessimistic)
+                        .PartitionContinueWith(page =>
+                        {
+                            if (page.Entities.Count < idc.Count)
+                                Logger.Magik.Warn(this, "批量查询实体 Id 时，返回结果数量不足。期望：{0}，实际：{1}。", idc.Count,
+                                    page.Entities.Count);
+                            foreach (var entity in page.Entities)
+                                ExplorePaperUnsafe(entity);
+                            return Task.CompletedTask;
+                        }).WhenCompleted();
+                }));
+            foreach (var n in nodesToFetch)
+            {
+                GetStatus(n.Id).MarkAsFetched(NodeStatus.PaperFetching);
+            }
+            WAIT_FOR_EXPLORATIONS:
+            //确保返回前，所有 Fetching 的节点已经由此线程或其他线程处理完毕。
+            var waitResult = await Task.WhenAll(paperNodes.Select(n =>
+                GetStatus(n.Id).UntilFetchedAsync(NodeStatus.PaperFetching)));
+            Debug.Assert(waitResult.All(r => r));
+        }
+
+        /// <summary>
+        /// 同时探索多个节点。适用于文章节点。注意，此函数仅在查询方面进行了优化，
+        /// 如果其他线程正在探索此节点，则等待此节点探索完毕。
+        /// </summary>
+        private async Task FetchPapersAsync(IReadOnlyCollection<KgNode> paperNodes, string constraint)
+        {
+            Debug.Assert(paperNodes != null);
+            if (constraint == null)
+            {
+                await FetchPapersAsync(paperNodes);
+                return;
+            }
+            // 1. 注意，有些节点可能仍处于 正在探索 的状态。
+            //      需要在返回前等待这些正在探索的节点。
+            // 2. 很不幸，一旦标记一个节点开始探索后，没有办法再标记为未探索，
+            //      所以在有约束的情况下，只能在内层循环中对节点分别标记。
+            var nodesToFetch = paperNodes.Where(n => GetStatus(n.Id).GetFetchingStatus(NodeStatus.PaperFetching) == FetchingStatus.Unfetched)
+                .ToArray();
+            if (nodesToFetch.Length == 0) goto WAIT_FOR_EXPLORATIONS;
             await Task.WhenAll(nodesToFetch.Select(n => n.Id)
                 .Partition(SEB.MaxChainedIdCount)
                 .Select(ids =>
                 {
                     // 假定 Partition 返回的是 IList / ICollection
                     var idc = (ICollection<long>) ids;
-                    return SearchClient.EvaluateAsync(constraint == null
-                        ? SEB.EntityIdIn(idc)
-                        : SEB.And(SEB.EntityIdIn(idc), constraint),
-                        SEB.MaxChainedIdCount).PartitionContinueWith(async er =>
+                    return SearchClient.EvaluateAsync(SEB.And(SEB.EntityIdIn(idc), constraint),
+                        SEB.MaxChainedIdCount,
+                        ConcurrentPagingMode.Optimistic)
+                        .PartitionContinueWith(async page =>
                         {
-                            //if (constraint == null && er.Entities.Count < idc.Count)
-                            //    Logger.Magik.Warn(this, "批量查询实体 Id 时，返回结果数量不足。期望：{0}，实际：{1}。", idc.Count,
-                            //        er.Entities.Count);
-                            foreach (var entity in er.Entities)
-                            {
+                            foreach (var entity in page.Entities)
                                 await ExplorePaperAsync(entity);
-                            }
                         }).WhenCompleted();
                 }));
-            //foreach (var n in nodesToExplore)
-            //{
-            //    GetStatus(n.Id).MarkAsExplored(NodeStatus.PaperExploration);
-            //}
-            //WAIT_FOR_EXPLORATIONS:
-            ////确保返回前，所有 Fetching 的节点已经由此线程或其他线程处理完毕。
-            //var waitResult = await Task.WhenAll(paperNodes.Select(n =>
-            //    GetStatus(n.Id).UntilFetchedAsync(NodeStatus.PaperFetching)));
-            //Debug.Assert(waitResult.All(r => r));
+            WAIT_FOR_EXPLORATIONS:
+            ;
         }
 
         /// <summary>
@@ -217,9 +241,9 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                     // 假定 Partition 返回的是 IList / ICollection
                     var idc = (ICollection<long>) ids;
                     //var explorationResult = 
-                    await SearchClient.EvaluateAsync(
-                        SEB.AuthorIdIn(idc),
-                        Assumptions.AuthorMaxPapers*idc.Count).PartitionContinueWith(async page =>
+                    await SearchClient.EvaluateAsync(SEB.AuthorIdIn(idc),
+                        Assumptions.AuthorMaxPapers*idc.Count,
+                        ConcurrentPagingMode.Optimistic).PartitionContinueWith(async page =>
                         {
                             foreach (var et in page.Entities)
                             {
@@ -262,11 +286,33 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             Debug.Assert(waitResult.All(r => r));
         }
 
+        //    /// <summary>
+    //    /// 使用直方图方法计算一个作者的所有机构。
+    //    /// </summary>
+    //    private async Task FetchAuthorAffiliations(long authorId)
+    //    {
+    //        affiliationIds.Partition(SEB.MaxChainedAfIdCount)
+    //            .Select(afids =>
+    //            {
+    //              SearchClient.CalcHistogramAsync(SEB.AuthorIdContains(authorId), "")
+
+    //            });
+    //        var nodesToExplore = authorNodes
+    //            .Where(n => GetStatus(n.Id).TryMarkAsFetching(NodeStatus.AuthorPapersFetching))
+    //            .ToArray();
+    //        if (nodesToExplore.Length == 0) goto WAIT_FOR_EXPLORATIONS;
+    //        WAIT_FOR_EXPLORATIONS:
+    //        //确保返回前，所有 Fetching 的节点已经由此线程或其他线程处理完毕。
+    //        var waitResult = await Task.WhenAll(authorNodes.Select(n =>
+    //            GetStatus(n.Id).UntilFetchedAsync(NodeStatus.AuthorPapersFetching)));
+    //        Debug.Assert(waitResult.All(r => r));
+    //}
+
         /// <summary>
         /// 探索作者与指定机构 Id 列表之间的关系。
         /// 此操作已进行优化，仅用于探索作者与机构之间的关系。
         /// </summary>
-        private async Task ExploreAuthorInAffiliations(long authorId, IEnumerable<long> affiliationIds)
+        private async Task FetchAuthorAffiliationRelations(long authorId, IEnumerable<long> affiliationIds)
         {
             var afidEnumerator = affiliationIds.GetEnumerator();
             var currentAfIds = new HashSet<long>();
@@ -441,21 +487,21 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                 node1 = null;
                 if (nodes1ToExplore[0] is PaperNode)
                 {
-                    papers1 = nodes1ToExplore.Cast<PaperNode>().ToArray();
+                    papers1 = nodes1ToExplore.CollectionCast<PaperNode>();
                     // 需要调查 papers1 的 AuId JId CId FId
                     await FetchPapersAsync(papers1);
                 }
                 else if (nodes1ToExplore[0] is AuthorNode)
                 {
-                    authors1 = nodes1ToExplore.Cast<AuthorNode>().ToArray();
+                    authors1 = nodes1ToExplore.CollectionCast<AuthorNode>();
                 }
                 else if (nodes1ToExplore[0] is AffiliationNode)
                 {
-                    affiliations1 = nodes1ToExplore.Cast<AffiliationNode>().ToArray();
+                    affiliations1 = nodes1ToExplore.CollectionCast<AffiliationNode>();
                 }
                 else if (nodes1ToExplore[0] is FieldOfStudyNode)
                 {
-                    foss1 = nodes1ToExplore.Cast<FieldOfStudyNode>().ToArray();
+                    foss1 = nodes1ToExplore.CollectionCast<FieldOfStudyNode>();
                 }
                 else
                 {
@@ -464,11 +510,11 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             }
             var paper2 = node2 as PaperNode;
             if (paper2 != null)
-                Debug.Assert(GetStatus(paper2.Id).GetFetchingStatus(NodeStatus.PaperFetching) ==
-                             FetchingStatus.Fetched);
+                Debug.Assert(GetStatus(paper2.Id)
+                    .GetFetchingStatus(NodeStatus.PaperFetching) == FetchingStatus.Fetched);
             // searchConstraint : 建议尽量简短，因为 FromPapers1 的约束可能
             // 会是 100 个条件的并。
-            Func<string, Task> exploreFromPapers1References = delegate(string searchConstraint)
+            Func<string, Task> exploreFromPapers1References = searchConstraint =>
             {
                 // 注意，我们是来做全局搜索的。像是 Id -> AuId -> Id
                 // 这种探索在局部探索阶段应该已经解决了。
@@ -479,10 +525,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                     .Select(id3 => nodes[id3])
                     .OfType<PaperNode>()
                     .Partition(SEB.MaxChainedIdCount)
-                    .Select(async nodes3 =>
-                    {
-                        await FetchPapersAsync(nodes3, searchConstraint);
-                    });
+                    .Select(nodes3 => FetchPapersAsync(nodes3, searchConstraint));
                 return Task.WhenAll(tasks);
             };
             if (paper2 != null)
@@ -490,23 +533,26 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                 // 带有 作者/研究领域/会议/期刊 等属性限制，
                 // 搜索 >引用< 中含有 paper2 的论文 Id。
                 // attributeConstraint 可以长一些。
-                Func<string, Task> FetchCitationsToPaper2WithAttributes =
-                    async attributeConstraint =>
-                    {
-                        // 一般来说， Paper2 肯定就是题目中的终结点，
-                        // 因此我们是知道其具体信息的。
-                        var maxPapers = CitationCount(paper2);
-                        await SearchClient.EvaluateAsync(SEB.And(
-                            attributeConstraint, SEB.ReferenceIdContains(paper2.Id)),
-                            maxPapers).PartitionContinueWith(async page =>
+                Func<string, Task> FetchCitationsToPaper2WithAttributes = async attributeConstraint =>
+                {
+                    // 一般来说， Paper2 肯定就是题目中的终结点，
+                    // 因此我们是知道其具体信息的。
+                    var maxPapers = CitationCount(paper2);
+                    var strategy = maxPapers == null
+                        ? ConcurrentPagingMode.Optimistic
+                        : ConcurrentPagingMode.Pessimistic;
+                    if (maxPapers == null) maxPapers = Assumptions.PaperMaxCitations;
+                    await SearchClient.EvaluateAsync(SEB.And(
+                        attributeConstraint, SEB.ReferenceIdContains(paper2.Id)),
+                        maxPapers.Value, strategy).PartitionContinueWith(async page =>
+                        {
+                            await Task.WhenAll(page.Entities.Select(entity =>
                             {
-                                await Task.WhenAll(page.Entities.Select(entity =>
-                                {
-                                    RegisterNode(entity);
-                                    return ExplorePaperAsync(entity);
-                                }));
-                            }).WhenCompleted();
-                    };
+                                RegisterNode(entity);
+                                return ExplorePaperAsync(entity);
+                            }));
+                        }).WhenCompleted();
+                };
                 if (papers1 != null)
                 {
                     // Id1 -> Id3 -> Id2
@@ -527,7 +573,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                     // 这里的 AuId 是 Id2 论文的作者列表。
                     await Task.WhenAll(graph.AdjacentOutVertices(node2.Id)
                         .Where(id => nodes[id] is AuthorNode)
-                        .Select(id => ExploreAuthorInAffiliations(id, affiliations1.Select(af => af.Id))));
+                        .Select(id => FetchAuthorAffiliationRelations(id, affiliations1.Select(af => af.Id))));
                 }
                 else if (foss1 != null)
                 {
@@ -557,22 +603,22 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                 // 带有 研究领域/会议/期刊 等属性限制，
                 // 搜索 author2 的论文 Id。
                 // attributeConstraint 可以长一些。
-                Func<string, Task> ExplorePapersOfAuthor2WithAttributes =
-                    async attributeConstraint =>
-                    {
-                        // 如果作者的所有论文已经被探索过了，
-                        // 那么很幸运，不需要再探索了。
-                        if (await GetStatus(node2.Id).UntilFetchedAsync(NodeStatus.AuthorPapersFetching))
-                            return;
-                        await SearchClient.EvaluateAsync(SEB.And(
-                            attributeConstraint, SEB.AuthorIdContains(node2.Id)),
-                            Assumptions.AuthorMaxPapers).PartitionContinueWith(page =>
-                                Task.WhenAll(page.Entities.Select(async entity =>
-                                {
-                                    RegisterNode(entity);
-                                    await ExplorePaperAsync(entity);
-                                }))).WhenCompleted();
-                    };
+                Func<string, Task> ExplorePapersOfAuthor2WithAttributes = async attributeConstraint =>
+                {
+                    // 如果作者的所有论文已经被探索过了，
+                    // 那么很幸运，不需要再探索了。
+                    if (await GetStatus(node2.Id).UntilFetchedAsync(NodeStatus.AuthorPapersFetching))
+                        return;
+                    await SearchClient.EvaluateAsync(SEB.And(
+                        attributeConstraint, SEB.AuthorIdContains(node2.Id)),
+                        Assumptions.AuthorMaxPapers, ConcurrentPagingMode.Optimistic)
+                        .PartitionContinueWith(page =>
+                            Task.WhenAll(page.Entities.Select(async entity =>
+                            {
+                                RegisterNode(entity);
+                                await ExplorePaperAsync(entity);
+                            }))).WhenCompleted();
+                };
                 if (papers1 != null)
                 {
                     // Id1 -> Id3 -> AA.AuId2
@@ -589,7 +635,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                     // AA.AuId1 <-> AA.AfId3 <-> AA.AuId2
                     // AA.AuId1 <-> AA.AfId3 已经在前面探索完毕。
                     // 只需探索 AA.AfId3 <-> AA.AuId2 。
-                    await ExploreAuthorInAffiliations(node2.Id, authors1
+                    await FetchAuthorAffiliationRelations(node2.Id, authors1
                         .SelectMany(au1 => graph.AdjacentOutVertices(au1.Id)
                             .Where(id2 => nodes[id2] is AffiliationNode)));
                 }

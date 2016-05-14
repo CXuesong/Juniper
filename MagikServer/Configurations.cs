@@ -27,10 +27,6 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikServer
         /// </summary>
         public static int ASClientPagingSize { get; }
 
-        /// <summary>
-        /// 是否允许在请求之间缓存网络图。
-        /// </summary>
-        public static TimeSpan AnalyzerCacheTimeout { get; }
 
         private static int ToInt32(this string expression)
         {
@@ -73,8 +69,6 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikServer
                                  ?? 1000;
             ASClientUseUltimateKey = config["ASClient.UseUltimateKey"]?.ToBoolean()
                                      ?? true;
-            AnalyzerCacheTimeout = config["Analyzer.CacheTimeout"]?.ToTimeSpan()
-                                   ?? TimeSpan.Zero;
         }
     }
 }

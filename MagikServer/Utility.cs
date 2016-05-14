@@ -13,36 +13,6 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikServer
     {
         public const string JsonMediaType = "application/json";
 
-        private static Analyzer cachedAnalyzer;
-        private static DateTime cachedAnalyzerCreationTime = DateTime.MinValue;
-
-        /// <summary>
-        /// 根据 <see cref="Configurations.AnalyzerCacheAllowed"/> ，决定
-        /// 是创建新的 Analyzer ，还是返回一个已有的 Analyzer 。
-        /// </summary>
-        public static Analyzer GetAnalyzer()
-        {
-            // TODO 检查线程安全性。
-            var analyzer = cachedAnalyzer;
-            if (cachedAnalyzer == null 
-                || DateTime.Now - cachedAnalyzerCreationTime > Configurations.AnalyzerCacheTimeout)
-            {
-                analyzer = new Analyzer(GlobalServices.CreateASClient());
-                analyzer.SearchClient.PagingSize = Configurations.ASClientPagingSize;
-                if (Configurations.AnalyzerCacheTimeout.Ticks > 0)
-                {
-                    cachedAnalyzer = analyzer;
-                    cachedAnalyzerCreationTime = DateTime.Now;
-                }
-            }
-            return analyzer;
-        }
-
-        public static void PurgeAnalyzer()
-        {
-            cachedAnalyzer = null;
-        }
-
         private static string _ApplicationTitle;
         private static string _ProductName;
         private static Version _ProductVersion;

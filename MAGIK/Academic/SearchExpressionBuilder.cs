@@ -24,7 +24,8 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
         /// <summary>
         /// 最大允许的 And(Id=2026561929,) 并联数量。
         /// </summary>
-        public const int MaxChainedIdCount = 85;
+        //public const int MaxChainedIdCount = 85;
+        public const int MaxChainedIdCount = 100;
 
         /// <summary>
         /// 最大允许的 And(Composite(AA.AuId=2026561929),) 并联数量。
@@ -68,6 +69,14 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
         public static string AffiliationIdContains(long id)
             => $"Composite(AA.AfId={id})";
 
+        public static string AffiliationIdIn(IEnumerable<long> ids)
+        {
+            //return ChainExpressions(ids.Select(FieldOfStudyIdContains), "Or");
+            var afexpr = ChainExpressions(ids.Select(id => "AA.AfId=" + id), "Or");
+            if (string.IsNullOrEmpty(afexpr)) throw new ArgumentException("机构列表为空。", nameof(ids));
+            return "Composite(" + afexpr + ")";
+        }
+
         /// <summary>
         /// 限定作者及其所在的机构。（而不是作者或机构。）
         /// </summary>
@@ -86,30 +95,30 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
         }
 
         public static string ConferenceIdEquals(long id)
-            => $"Composite(C.CId={id})";
+            => "Composite(C.CId=" + id + ")";
 
         public static string JournalIdEquals(long id)
-            => $"Composite(J.JId={id})";
+            => "Composite(J.JId=" + id + ")";
 
         public static string FieldOfStudyIdContains(long id)
-            => $"Composite(F.FId={id})";
+            => "Composite(F.FId=" + id + ")";
 
         public static string FieldOfStudyIdIn(IEnumerable<long> ids)
         {
             //return ChainExpressions(ids.Select(FieldOfStudyIdContains), "Or");
             var afexpr = ChainExpressions(ids.Select(id => "F.FId=" + id), "Or");
             if (string.IsNullOrEmpty(afexpr)) throw new ArgumentException("研究领域列表为空。", nameof(ids));
-            return $"Composite({afexpr})";
+            return "Composite(" + afexpr + ")";
         }
 
         public static string EntityOrAuthorIdEquals(long id)
             => $"Or(Id={id},Composite(AA.AuId={id}))";
 
         public static string And(string expr1, string expr2)
-            => $"And({expr1},{expr2})";
+            => "And(" + expr1 + "," + expr2 + ")";
 
         public static string Or(string expr1, string expr2)
-            => $"Or({expr1},{expr2})";
+            => "Or(" + expr1 + "," + expr2 + ")";
 
         private static string ChainExpressions(IEnumerable<string> subExpressions, string relationKeyword)
         {

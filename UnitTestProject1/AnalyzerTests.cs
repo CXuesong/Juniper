@@ -1,5 +1,5 @@
 ﻿#define CACHE_TEST_ENABLED
-#define SKIP_HUGE_TEST_CASES
+//#define SKIP_HUGE_TEST_CASES
 
 using System;
 using System.Collections;
@@ -49,7 +49,7 @@ namespace UnitTestProject1
             var paths2 = TestUtility.AwaitSync(a.FindPathsAsync(id1, id2));
             sw.Stop();
             Trace.WriteLine("Cached: " + sw.Elapsed);
-            Assert.IsTrue(paths.Count == paths2.Count);
+            Assert.AreEqual(paths.Count, paths2.Count);
             Assert.IsTrue(paths.SequenceEqual(paths2, ArrayEqualityComparer<KgNode>.Default));
             Trace.WriteLine(a.DumpStatistics());
             Trace.WriteLine(asc.DumpStatistics());
@@ -316,9 +316,47 @@ namespace UnitTestProject1
             var paths = FindPaths(2018949714, 2105005017, true);
             AssertPathsCount(paths, 595);
         }
+
+        [TestMethod]
+        public void AnalyzerTestMethodX1()
+        {
+            var paths = FindPaths(2088905367, 2033660646, true);
+            TraceAsJson(paths);
+            AssertPathsCount(paths, 116);
+        }
+
+        [TestMethod]
+        public void AnalyzerTestMethodX2()
+        {
+            var paths = FindPaths(2100837269, 621499171, true);
+            AssertPathsCount(paths, 10);
+        }
+
+        [TestMethod]
+        public void AnalyzerTestMethodX3()
+        {
+            var paths = FindPaths(2008785686, 56455408, true);
+            AssertPathsCount(paths, 135);
+        }
+
+        [TestMethod]
+        public void AnalyzerTestMethodX4()
+        {
+            var paths = FindPaths(1912875929, 2292217923, true);
+            AssertPathsCount(paths, 135);
+        }
+
+        [TestMethod]
+        public void AnalyzerTestMethodX5()
+        {
+            var paths = FindPaths(1912875929, 2292217923, true);
+            AssertPathsCount(paths, 35);
+        }
+
         /// <summary>
         /// BOP 5-5 放出的样例1。
         /// </summary>
+        [TestMethod]
         public void AnalyzerTestBop1()
         {
             // [AuthorNode:2251253715] Raquel Pau
@@ -330,6 +368,7 @@ namespace UnitTestProject1
         /// <summary>
         /// BOP 5-5 放出的样例2。
         /// </summary>
+        [TestMethod]
         public void AnalyzerTestBop2()
         {
             // [PaperNode:2147152072] Indexing By Latent Semantic Analysis
@@ -341,6 +380,7 @@ namespace UnitTestProject1
         /// <summary>
         /// BOP 5-5 放出的样例3。
         /// </summary>
+        [TestMethod]
         public void AnalyzerTestBop3()
         {
             // [PaperNode:2332023333] Recovering Transparent Shape From Time Of Flight Distortion
@@ -352,6 +392,7 @@ namespace UnitTestProject1
         /// <summary>
         /// BOP 5-11 放出的样例4。
         /// </summary>
+        [TestMethod]
         public void AnalyzerTestBop4()
         {
             // [PaperNode:2332023333] Recovering Transparent Shape From Time Of Flight Distortion
@@ -364,6 +405,7 @@ namespace UnitTestProject1
         /// <summary>
         /// BOP 5-11 放出的样例5。
         /// </summary>
+        [TestMethod]
         public void AnalyzerTestBop5()
         {
             // [AuthorNode:57898110] Timo Bolkart
@@ -375,7 +417,7 @@ namespace UnitTestProject1
         /// <summary>
         /// BOP 放出的样例组合。
         /// </summary>
-        [TestMethod]
+        //[TestMethod]
         public void AnalyzerTestBop()
         {
             AnalyzerTestBop1();

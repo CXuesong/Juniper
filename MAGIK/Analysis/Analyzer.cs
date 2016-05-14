@@ -6,7 +6,6 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -79,7 +78,12 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         /// </summary>
         public string DumpStatistics()
         {
+            // 注意 ConcurrentDictionary 的性能问题。
+#if DEBUG
             return $"缓存图：{graph.VerticesCount}个节点，{graph.EdgesCount}条边。";
+#else
+            return $"缓存图：{graph.EdgesCount}条边。";
+#endif
         }
 
         /// <summary>
@@ -98,6 +102,10 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             Trace.WriteLine(graph.Dump());
         }
 
+        /// <summary>
+        /// 获取 Analyzer 中已经缓存的节点数量。
+        /// </summary>
+        public int CachedNodesCount => graph.VerticesCount;
 
         /// <summary>
         /// 获取调用统计信息。
@@ -125,12 +133,12 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         /// <summary>
         /// 从局部缓存中获取论文的引用次数。
         /// </summary>
-        private int CitationCount(PaperNode node, int defaultValue = Assumptions.PaperMaxCitations)
+        private int? CitationCount(PaperNode node)
         {
             Debug.Assert(node != null);
             int count;
             if (_CitationCountDict.TryGetValue(node.Id, out count)) return count;
-            return defaultValue;
+            return null;
         }
 
         /// <summary>
@@ -154,17 +162,17 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
 
         private class NodeStatus
         {
-            ///// <summary>
-            ///// 节点的基础本地信息的探索情况。
-            ///// </summary>
-            //public static readonly ExplorationDomainKey LocalExploration =
-            //    new TokenExplorationDomainKey("LocalExploration");
-
             /// <summary>
             /// 论文联系的探索情况。
             /// </summary>
             public static readonly FetchingDomainKey PaperFetching =
                 new TokenFetchingDomainKey("PaperExploration");
+
+            ///// <summary>
+            ///// 作者所属机构的探索情况。
+            ///// </summary>
+            //public static readonly FetchingDomainKey AuthorAffiliationsFetching =
+            //    new TokenFetchingDomainKey("AuthorAffiliationsFetching");
 
             /// <summary>
             /// 作者所写的所有论文的探索情况。

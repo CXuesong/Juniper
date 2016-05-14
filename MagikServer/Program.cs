@@ -23,9 +23,9 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikServer
     {
         static void Main(string[] args)
         {
-            //EnableProfiling();
-            ForceJit(typeof (Analyzer).Assembly);
-            ForceJit(typeof (JsonConverter).Assembly);
+            EnableProfiling();
+            //ForceJit(typeof (Analyzer).Assembly);
+            //ForceJit(typeof (JsonConverter).Assembly);
             Console.WriteLine(Utility.ProductName);
             Console.WriteLine(Utility.ApplicationTitle + " " + Utility.ProductVersion);
             // 载入设置

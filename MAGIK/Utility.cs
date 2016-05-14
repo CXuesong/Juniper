@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
@@ -107,6 +108,43 @@ namespace Microsoft.Contests.Bop.Participants.Magik
             if (source == null) throw new ArgumentNullException(nameof(source));
             var set = new HashSet<T>(comparer);
             return source.All(item => set.Add(item));
+        }
+
+        public static IReadOnlyCollection<T> CollectionCast<T>(this ICollection source)
+        {
+            if (source == null) throw new ArgumentNullException(nameof(source));
+            return new CastedCollection<T>(source);
+        }
+
+        private class CastedCollection<T> : IReadOnlyCollection<T>
+        {
+            private readonly ICollection _Source;
+            private readonly IEnumerable<T> _Casted;
+             
+            public CastedCollection(ICollection source)
+            {
+                if (source == null) throw new ArgumentNullException(nameof(source));
+                _Source = source;
+                _Casted = source.Cast<T>();
+            }
+
+            public IEnumerator<T> GetEnumerator() => _Casted.GetEnumerator();
+
+            /// <summary>
+            /// 返回循环访问集合的枚举数。
+            /// </summary>
+            /// <returns>
+            /// 可用于循环访问集合的 <see cref="T:System.Collections.IEnumerator"/> 对象。
+            /// </returns>
+            IEnumerator IEnumerable.GetEnumerator() => _Casted.GetEnumerator();
+
+            /// <summary>
+            /// 获取集合中的元素数。
+            /// </summary>
+            /// <returns>
+            /// 集合中的元素数。
+            /// </returns>
+            public int Count => _Source.Count;
         }
     }
 

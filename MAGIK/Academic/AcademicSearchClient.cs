@@ -11,6 +11,23 @@ using Newtonsoft.Json;
 namespace Microsoft.Contests.Bop.Participants.Magik.Academic
 {
     /// <summary>
+    /// 在进行分页化请求时使用的分页并行化模式。
+    /// </summary>
+    public enum ConcurrentPagingMode
+    {
+        /// <summary>
+        /// 对返回记录总数的限制是一个在实际中基本上不会遇到的足够大的值。
+        /// 这指示了在初期应当尝试尽量少地建立分页请求。
+        /// </summary>
+        Optimistic = 0,
+        /// <summary>
+        /// 对返回记录总数的限制是一个准确的值。
+        /// 这指示了在初期应当根据总数限制，在合理的情况下，尽量多地建立分页请求。
+        /// </summary>
+        Pessimistic
+    }
+
+    /// <summary>
     /// 提供了 Academic Search API 的 .NET 封装。
     /// </summary>
     /// <remarks>
@@ -42,7 +59,8 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
             _subscriptionKey = subscriptionKey;
         }
 
-#region 配置
+        #region 配置
+
         /// <summary>
         /// Academic Search API 服务器主机 Url 。
         /// 此属性的默认值为 https://api.projectoxford.ai/academic/v1.0 。
@@ -120,7 +138,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
 
         #endregion
 
-#region Evaluation
+        #region Evaluation
 
         /// <summary>
         /// 异步计算查询表达式，并进行学术文献的检索。
@@ -141,7 +159,8 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
         /// <summary>
         /// 异步计算查询表达式，并进行学术文献的检索。
         /// </summary>
-        public async Task<EvaluationResult> EvaluateAsync(string expression, int count, int offset, string orderBy, string attributes)
+        public async Task<EvaluationResult> EvaluateAsync(string expression, int count, int offset, string orderBy,
+            string attributes)
         {
             Logger.AcademicSearch.Enter(this, $"{expression}; ({offset},{offset + count}]");
             var requestUrl =
@@ -161,26 +180,47 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
         /// <summary>
         /// 异步计算查询表达式，并进行学术文献的检索。启用自动分页。
         /// </summary>
-        public ParitionedPromise<EvaluationResult> EvaluateAsync(string expression, int count)
+        public ParitionedPromise<EvaluationResult> EvaluateAsync0(string expression, int count)
         {
-            return EvaluateAsync(expression, count, null, null);
+            return EvaluateAsync(expression, count, null, null, ConcurrentPagingMode.Optimistic);
         }
 
         /// <summary>
         /// 异步计算查询表达式，并进行学术文献的检索。启用自动分页。
         /// </summary>
-        public ParitionedPromise<EvaluationResult> EvaluateAsync(string expression, int count, string orderBy, string attributes)
+        public ParitionedPromise<EvaluationResult> EvaluateAsync(string expression, int count, ConcurrentPagingMode pagingMode)
+        {
+            return EvaluateAsync(expression, count, null, null, pagingMode);
+        }
+
+        /// <summary>
+        /// 异步计算查询表达式，并进行学术文献的检索。启用自动分页。
+        /// </summary>
+        public ParitionedPromise<EvaluationResult> EvaluateAsync(string expression, int count, string orderBy,
+            string attributes)
+        {
+            return EvaluateAsync(expression, count, orderBy, attributes, ConcurrentPagingMode.Optimistic);
+        }
+
+        /// <summary>
+        /// 异步计算查询表达式，并进行学术文献的检索。启用自动分页。
+        /// </summary>
+        public ParitionedPromise<EvaluationResult> EvaluateAsync(string expression, int count, string orderBy,
+            string attributes, ConcurrentPagingMode pagingMode)
         {
             var promise = new ParitionedPromise<EvaluationResult>();
-            promise.SetProducerTask(EvaluateAsync(expression, count, orderBy, attributes, promise));
+            promise.SetProducerTask(EvaluateAsync(expression, count, orderBy, attributes, pagingMode, promise));
             return promise;
         }
 
         /// <summary>
         /// 异步计算查询表达式，并进行学术文献的检索。启用自动分页。
         /// </summary>
-        private async Task EvaluateAsync(string expression, int count, string orderBy, string attributes, ParitionedPromise<EvaluationResult> promise)
+        private async Task EvaluateAsync(string expression, int count, string orderBy, string attributes,
+            ConcurrentPagingMode pagingMode, ParitionedPromise<EvaluationResult> promise)
         {
+            if (pagingMode != ConcurrentPagingMode.Optimistic && pagingMode != ConcurrentPagingMode.Pessimistic)
+                throw new ArgumentOutOfRangeException(nameof(pagingMode));
             if (promise == null) throw new ArgumentNullException(nameof(promise));
             // 处理明显小于一页的情况。
             if (count < PagingSize)
@@ -192,20 +232,12 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
             Logger.AcademicSearch.Enter(this, $"{expression}, [1,{count}] Paged");
             var noMoreResults = false;
             int results = 0;
-            EvaluationResult[] pages = null;
-            var offset = 0;
-            var currentConcurrentPagingCount = 1;
-            while (true)
+            // 当前允许的最大并行分页数量。
+            var currentConcurrentPagingCount = pagingMode == ConcurrentPagingMode.Optimistic ? 1 : ConcurrentPagingCount;
+            for (var offset = 0; offset < count;)
             {
                 // sessions
-                // 如果有回调，先执行回调。
-                if (pages != null)
-                {
-                    foreach (var p in pages) promise.DeclarePartitionFinished(p);
-                    // 已经不需要再下载页面了。
-                    if (noMoreResults || offset >= count) break;
-                }
-                // 顺便下载页面。
+                // 下载页面。
                 var sessionPages = Math.Min((count - offset)/PagingSize, currentConcurrentPagingCount);
                 if (sessionPages == 0)
                 {
@@ -215,22 +247,29 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
                 }
                 var offset1 = offset; // Access to modified closure.
                 // 开始下载页面。
-                pages = await Task.WhenAll(Enumerable.Range(0, sessionPages).Select(i =>
-                    EvaluateAsync(expression, PagingSize, offset1 + i*PagingSize, orderBy, attributes)));
-                foreach (var page in pages)
-                {
-                    // 当前 session 已经包含最后一页了。
-                    // 做个标记，然后交给下一次循环来处理。
-                    if (page.Entities.Count < PagingSize)
-                        noMoreResults = true;
-                    results += page.Entities.Count;
-                }
+                await Task.WhenAll(Enumerable.Range(0, sessionPages).Select(i =>
+                    EvaluateAsync(expression, PagingSize, offset1 + i*PagingSize, orderBy, attributes)
+                        .ContinueWith(t =>
+                        {
+                            if (t.Result.Entities.Count > 0)
+                            {
+                                results += t.Result.Entities.Count;
+                                promise.DeclarePartitionFinished(t.Result);
+                            }
+                            else
+                            {
+                                // 当前 session 已经包含最后一页了。
+                                noMoreResults = true;
+                            }
+                        })));
+                if (noMoreResults) break;
                 offset += sessionPages*PagingSize;
                 // 如果还有结果，那么下一次试着多下载几页。
                 if (currentConcurrentPagingCount < ConcurrentPagingCount)
                     currentConcurrentPagingCount = Math.Min(currentConcurrentPagingCount*2, ConcurrentPagingCount);
             }
-            Logger.AcademicSearch.Exit(this, $"{expression}; {results} Entities in total. {(noMoreResults ? "" : " Truncated.")}");
+            Logger.AcademicSearch.Exit(this,
+                $"{expression}; {results} Entities in total. {(noMoreResults ? "" : " Truncated.")}");
         }
 
         /// <summary>
@@ -251,14 +290,14 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
             Logger.AcademicSearch.Enter(this, expression);
             int min = 0, max = maxCount;
             var mid = (max + min)/2;
-            while ((max - min) / (float)mid > precision)
+            while ((max - min)/(float) mid > precision)
             {
                 var er = await EvaluateAsync(expression, 1, mid, "");
                 if (er.Entities.Count > 0)
                     min = mid;
                 else
                     max = mid;
-                mid = (max + min) / 2;
+                mid = (max + min)/2;
             }
             Logger.AcademicSearch.Exit(this, mid.ToString());
             return mid;
@@ -283,14 +322,16 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
         {
             return IsEvaluationCountGreaterThanAsync(expression, 0);
         }
+
         #endregion
 
-#region CalcHistogram
+        #region CalcHistogram
 
         /// <summary>
         /// 异步计算查询表达式，进行学术文献直方图的检索。
         /// </summary>
-        public async Task<CalcHistogramResult> CalcHistogramAsync(string expression, int count, int offset, string attributes)
+        public async Task<CalcHistogramResult> CalcHistogramAsync(string expression, int count, int offset,
+            string attributes)
         {
             if (string.IsNullOrEmpty(attributes)) throw new ArgumentNullException(nameof(attributes));
             Logger.AcademicSearch.Enter(this, $"{expression}; ({offset},{offset + count}]");
@@ -311,29 +352,23 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
         /// <summary>
         /// 异步计算查询表达式，进行学术文献直方图的检索。启用分页。
         /// </summary>
-        public ParitionedPromise<CalcHistogramResult> CalcHistogramAsync(string expression, int count, string attributes)
+        public ParitionedPromise<CalcHistogramResult> CalcHistogramAsync(string expression, string attributes)
         {
             var promise = new ParitionedPromise<CalcHistogramResult>();
-            promise.SetProducerTask(CalcHistogramAsync(expression, count, attributes, promise));
+            promise.SetProducerTask(CalcHistogramAsync(expression, attributes, promise));
             return promise;
         }
 
         /// <summary>
         /// 异步计算查询表达式，进行学术文献直方图的检索。启用分页。
         /// </summary>
-        private async Task CalcHistogramAsync(string expression, int count, string attributes,
-            ParitionedPromise<CalcHistogramResult> promise)
+        private async Task CalcHistogramAsync(string expression, string attributes, ParitionedPromise<CalcHistogramResult> promise)
         {
             if (string.IsNullOrEmpty(attributes)) throw new ArgumentNullException(nameof(attributes));
             if (promise == null) throw new ArgumentNullException(nameof(promise));
-            if (count < PagingSize)
-            {
-                await CalcHistogramAsync(expression, count, 0, attributes);
-                return;
-            }
-            Logger.AcademicSearch.Enter(this, $"{expression}, [1,{count}] Paged");
+            Logger.AcademicSearch.Enter(this, $"{expression}, Paged");
             var noMoreResults = false;
-            for (var offset = 0; offset < count; offset += PagingSize)
+            for (var offset = 0;; offset += PagingSize)
             {
                 var result = await CalcHistogramAsync(expression, PagingSize, offset, attributes);
                 if (result.Histograms.Any(h => h.Entries.Count > 0))
@@ -349,6 +384,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
         }
 
         #endregion
+
         /// <summary>
         /// 客户端预热。
         /// </summary>

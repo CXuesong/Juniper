@@ -32,7 +32,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikServer.Controllers
                 switch (action)
                 {
                     case "purge":
-                        Utility.PurgeAnalyzer();
+                        AnalyzerFactory.PurgeCache();
                         break;
                     default:
                         throw new ArgumentException("无效的操作。", nameof(action));
@@ -69,7 +69,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikServer.Controllers
         public async Task<IHttpActionResult> Get(long id1, long id2)
         {
             var sw = Stopwatch.StartNew();
-            var analyzer = Utility.GetAnalyzer();
+            var analyzer = AnalyzerFactory.GetAnalyzer();
             try
             {
                 var paths = await analyzer.FindPathsAsync(id1, id2);
@@ -96,6 +96,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikServer.Controllers
                 {
                     Content = new StringContent(resultBuilder.ToString(), null, Utility.JsonMediaType)
                 };
+                AnalyzerFactory.PutAnalyzer(analyzer);
                 return new ResponseMessageResult(resp);
             }
             finally

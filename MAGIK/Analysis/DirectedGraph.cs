@@ -21,7 +21,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
     {
         // Vertex, Adjacent Vertices
         private readonly ConcurrentDictionary<TVertex, VertexEntry> vertices = new ConcurrentDictionary<TVertex, VertexEntry>();
-        private int _EdgesCount = 0;
+        private volatile int _EdgesCount = 0;
 
         //private static readonly ICollection<TVertex> EmptyVertices = new TVertex[0];
 
@@ -111,12 +111,15 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
         public ISet<TVertex> AdjacentOutVertices(TVertex vertex)
         {
             if (vertex == null) throw new ArgumentNullException(nameof(vertex));
-                        return vertices[vertex].DuplicateAdjacentOutVertices();
+            return vertices[vertex].DuplicateAdjacentOutVertices();
         }
 
         /// <summary>
-        /// 获取节点的数量。
+        /// 获取节点数量。
         /// </summary>
+        /// <remarks>
+        /// 注意：使用此属性可能会造成性能问题。
+        /// </remarks>
         public int VerticesCount => vertices.Count;
 
         /// <summary>
