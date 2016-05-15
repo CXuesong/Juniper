@@ -114,7 +114,6 @@ namespace ContestantServerTester
                 catch (Exception ex)
                 {
                     Console.WriteLine(ex.Message);
-                    performance.Add(new PerformanceEntry(sw.ElapsedMilliseconds, 0));
                 }
                 finally
                 {
@@ -122,14 +121,14 @@ namespace ContestantServerTester
                     var timeRatio = (double) sw.ElapsedMilliseconds/1000/300;
                     var score = 10.0/99*(Math.Pow(100, acceptedRatio) - 1)*(1 - timeRatio);
                     Console.WriteLine("得分： {0}", score);
-                    performance.Add(new PerformanceEntry(sw.ElapsedMilliseconds, score));
+                    performance.Add(new PerformanceEntry(sw.ElapsedMilliseconds, score, acceptedRatio));
                 }
                 Console.WriteLine();
             }
             Console.WriteLine("小结");
-            Console.WriteLine("用时\t得分");
+            Console.WriteLine("用时\t正确率\t得分");
             foreach (var p in performance)
-                Console.WriteLine("{0}\t{1}", p.ElapsedMilliseconds, p.Score);
+                Console.WriteLine("{0}\t{1:p1}\t{2}", p.ElapsedMilliseconds, p.AcceptedRatio, p.Score);
             Console.WriteLine("----------------------");
             Console.WriteLine("{0}\t{1}", performance.Sum(p => p.ElapsedMilliseconds), performance.Sum(p => p.Score));
             Console.WriteLine();
@@ -138,14 +137,17 @@ namespace ContestantServerTester
 
     class PerformanceEntry
     {
-        public PerformanceEntry(long elapsedMilliseconds, double score)
+        public PerformanceEntry(long elapsedMilliseconds, double score, double acceptedRatio)
         {
             ElapsedMilliseconds = elapsedMilliseconds;
             Score = score;
+            AcceptedRatio = acceptedRatio;
         }
 
         public long ElapsedMilliseconds { get; }
 
         public double Score { get; }
+
+        public double AcceptedRatio { get; }
     }
 }

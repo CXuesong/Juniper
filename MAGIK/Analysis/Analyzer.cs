@@ -76,7 +76,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                 FindHop3PathsAsync(node1, node2));
             var result = MultiCollectionView.Create(hops);
             Debug.Assert(result.IsDistinct(ArrayEqualityComparer<KgNode>.Default));
-            Logger.Magik.Success(this, "在 {0} - {1} 之间找到了 {2} 条路径。用时： {3} 。", node1, node2, result.Count, sw.Elapsed);
+            Logger.Magik.Trace(this, "在 {0} - {1} 之间找到了 {2} 条路径。", node1, node2, result.Count);
             TimerLogger.TraceTimer("Analyzer", sw);
             Logger.Magik.Exit(this);
             return result;
@@ -148,6 +148,32 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             int count;
             if (_CitationCountDict.TryGetValue(node.Id, out count)) return count;
             return null;
+        }
+
+        private static readonly long[][] _WarmUpQueries =
+{
+            new [] {2332023333L, 2310280492}, new[] {2251253715L, 2180737804}
+        };
+
+        /// <summary>
+        /// 通过查找简单的节点间联系来对 JIT 和网络连接进行预热。
+        /// </summary>
+        public static async Task WarmUpAsync(AcademicSearchClient searchClient)
+        {
+            var rnd = new Random();
+            var query = _WarmUpQueries[rnd.Next(_WarmUpQueries.Length)];
+            Logger.Magik.Enter(null);
+            var analyzer = new Analyzer(searchClient);
+            try
+            {
+                await analyzer.FindPathsAsync(query[0], query[1]);
+                Logger.Magik.Success(nameof(Analyzer), "已经使用问题 [{0},{1}] 进行预热。", query[0], query[1]);
+                Logger.Magik.Exit(nameof(Analyzer));
+            }
+            catch (Exception ex)
+            {
+                Logger.Magik.Exception(nameof(Analyzer), ex);
+            }
         }
 
         /// <summary>

@@ -10,9 +10,9 @@ using System.Web.Http.ExceptionHandling;
 using Microsoft.Owin;
 using Microsoft.Owin.Builder;
 using Microsoft.Owin.Extensions;
-using Microsoft.Owin.FileSystems;
+//using Microsoft.Owin.FileSystems;
 using Microsoft.Owin.Logging;
-using Microsoft.Owin.StaticFiles;
+//using Microsoft.Owin.StaticFiles;
 using Owin;
 
 namespace Microsoft.Contests.Bop.Participants.Magik.MagikServer
@@ -57,14 +57,9 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikServer
                 config.MapHttpAttributeRoutes();
                 config.Routes.IgnoreRoute("StaticFiles", StaticFilesVirtualRoot + "/{*pathInfo}");
                 config.Routes.MapHttpRoute("Home", "", new {controller = "Home"});
-                config.Routes.MapHttpRoute(
-                    "DefaultApi",
-                    "{controller}/{id}",
-                    new { id = RouteParameter.Optional }
-                    );
+                config.Routes.MapHttpRoute("DefaultApi", "{controller}/{id}", new {id = RouteParameter.Optional});
                 appBuilder.UseWebApi(config);
             }
-            
             /*
             {
                 var options = new FileServerOptions

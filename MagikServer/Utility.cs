@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
@@ -49,6 +50,15 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikServer
             {
                 if (_ProductVersion == null) _ProductVersion = typeof(Utility).Assembly.GetName().Version;
                 return _ProductVersion;
+            }
+        }
+
+        public static string ApplicationLocation
+        {
+            get
+            {
+                var location = Assembly.GetExecutingAssembly().Location;
+                return Path.GetDirectoryName(location);
             }
         }
     }

@@ -376,14 +376,6 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
 
         #endregion
 
-        /// <summary>
-        /// 客户端预热。
-        /// </summary>
-        public async Task WarmUp()
-        {
-            await EvaluationHasResultAsync("Id=0");
-        }
-
         private void InitializeRequest(WebRequest request, string method)
         {
             request.Headers[_subscriptionKeyName] = _subscriptionKey;

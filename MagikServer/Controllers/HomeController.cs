@@ -17,7 +17,8 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikServer.Controllers
     {
         public IHttpActionResult Get()
         {
-            var sb = new StringBuilder(File.ReadAllText(Startup.WwwFileSystemRoot + @"/index.html"));
+            var sb = new StringBuilder(File.ReadAllText(Path.Combine(
+                Utility.ApplicationLocation, Startup.WwwFileSystemRoot, "index.html")));
             using (var proc = Process.GetCurrentProcess())
             {
                 sb.Replace("$WORKING_SET$", proc.WorkingSet64.ToString("#,#"));

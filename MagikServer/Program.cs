@@ -8,8 +8,10 @@ using System.Net.Http;
 using System.Reflection;
 using System.Runtime;
 using System.Runtime.CompilerServices;
+using System.ServiceProcess;
 using System.Text;
 using System.Threading.Tasks;
+using Microsoft.Contests.Bop.Participants.Magik.Academic;
 using Microsoft.Contests.Bop.Participants.Magik.Analysis;
 using Microsoft.Owin.Hosting;
 using Newtonsoft.Json;
@@ -21,27 +23,38 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikServer
     /// </summary>
     class Program
     {
+        /// <summary>
+        /// 主入口。
+        /// </summary>
         static void Main(string[] args)
         {
             EnableProfiling();
             //ForceJit(typeof (Analyzer).Assembly);
             //ForceJit(typeof (JsonConverter).Assembly);
+            // 载入设置
+            GlobalServices.ASUseUltimateKey = Configurations.ASClientUseUltimateKey;
+            // 选择入口点。
+            if (Environment.UserInteractive)
+                ConsoleMain();
+            else
+                ServiceMain();
+        }
+
+        /// <summary>
+        /// 控制台的主入口。
+        /// </summary>
+        /// <param name="args"></param>
+        static void ConsoleMain()
+        {
+            Console.WriteLine(Configurations.DumpConfigurations());
             Console.WriteLine(Utility.ProductName);
             Console.WriteLine(Utility.ApplicationTitle + " " + Utility.ProductVersion);
-            // 载入设置
-            Configurations.PrintConfigurations();
-            GlobalServices.ASUseUltimateKey = Configurations.ASClientUseUltimateKey;
-            var options = new StartOptions();
-            foreach (var ba in Configurations.BaseAddresses) options.Urls.Add(ba);
+            // 开始预热。
+            var warmUpTask = Analyzer.WarmUpAsync(AnalyzerFactory.CreateSearchClient());
+            warmUpTask = warmUpTask.ContinueWith(t => warmUpTask = null);
             // Start OWIN host 
-            using (WebApp.Start<Startup>(options))
+            using (StartWebApp())
             {
-                /*
-                var client = new HttpClient();
-                var response = client.GetAsync("http://localhost:9000/magik/v1/paths?expr=[123,456]").Result;
-                Console.WriteLine(response);
-                Console.WriteLine(response.Content.ReadAsStringAsync().Result);
-                */
                 WAITFORKEY:
                 Console.WriteLine("请按任意键以结束服务。");
                 Console.ReadKey(true);
@@ -51,13 +64,30 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikServer
         }
 
         /// <summary>
+        /// 服务的主入口。
+        /// </summary>
+        static void ServiceMain()
+        {
+            var service = new MagikWebService();
+            ServiceBase.Run(service);
+        }
+
+        /// <summary>
+        /// 用于根据配置，启动网络服务。
+        /// </summary>
+        public static IDisposable StartWebApp()
+        {
+            var options = new StartOptions();
+            foreach (var ba in Configurations.BaseAddresses) options.Urls.Add(ba);
+            return WebApp.Start<Startup>(options);
+        }
+
+        /// <summary>
         /// 为应用程序启用 Multicore JIT 编译优化。
         /// </summary>
         private static void EnableProfiling()
         {
-            var location = Assembly.GetExecutingAssembly().Location;
-            location = Path.GetDirectoryName(location);
-            ProfileOptimization.SetProfileRoot(location);
+            ProfileOptimization.SetProfileRoot(Utility.ApplicationLocation);
             // 读取/覆盖 Profile 。
             ProfileOptimization.StartProfile("MagikServer.Startup.Profile");
         }

@@ -32,6 +32,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik
             source = new TraceSource(name);
         }
 
+        [Conditional("TRACE_MORE")]
         public void Enter(object obj, object param = null, [CallerMemberName] string memberName = null)
         {
             if (source.Switch.ShouldTrace(TraceEventType.Verbose))
@@ -39,6 +40,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik
                 $"{ToString(obj)}.{memberName} <| {param}");
         }
 
+        [Conditional("TRACE_MORE")]
         public void Exit(object obj, string result = null, [CallerMemberName] string memberName = null)
         {
             if (source.Switch.ShouldTrace(TraceEventType.Verbose))
@@ -163,12 +165,13 @@ namespace Microsoft.Contests.Bop.Participants.Magik
         private string ToString(object obj)
         {
             if (obj == null) return "-";
-            string content;
+            string content = obj as string;
+            if (content != null) return content;
             if (obj is KgNode)
                 content = Convert.ToString(((KgNode)obj).Id);
             else
                 content = Convert.ToString(obj.GetHashCode());
-            return $"{obj.GetType().Name}#{content}";
+            return obj.GetType().Name + "#" + content;
         }
     }
 

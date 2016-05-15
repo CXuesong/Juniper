@@ -2,9 +2,11 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Configuration;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Runtime;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -27,6 +29,10 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikServer
         /// </summary>
         public static int ASClientPagingSize { get; }
 
+        /// <summary>
+        /// 学术搜索客户端的最大允许并行分页数量。
+        /// </summary>
+        public static int ASClientConcurrentPagingCount { get; }
 
         private static int ToInt32(this string expression)
         {
@@ -44,20 +50,23 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikServer
         }
 
         /// <summary>
-        /// 向控制台输出当前的设置。
+        /// 输出当前的设置。
         /// </summary>
-        public static void PrintConfigurations()
+        public static string DumpConfigurations()
         {
-            if (Environment.Is64BitProcess) Console.WriteLine("64位进程。");
-            if (GCSettings.IsServerGC) Console.WriteLine("服务器GC已启用。");
+            var sb = new StringBuilder();
+            if (Environment.Is64BitProcess) sb.AppendLine("64位进程。");
+            if (GCSettings.IsServerGC) sb.AppendLine("服务器GC已启用。");
+            sb.AppendLine("当前路径： " + Directory.GetCurrentDirectory());
             foreach (var p in typeof(Configurations).GetProperties(BindingFlags.Static | BindingFlags.Public))
             {
                 var value = p.GetValue(null);
                 var s = value.ToString();
                 var enumerable = value as IEnumerable;
                 if (enumerable != null) s = string.Join(",", enumerable.Cast<object>());
-                Console.WriteLine("{0,40} = {1}", p.Name, s);
+                sb.AppendFormat("{0,40} = {1}\n", p.Name, s);
             }
+            return sb.ToString();
         }
 
         static Configurations()
@@ -67,6 +76,8 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikServer
                             ?? new[] {"http://localhost:9000/"};
             ASClientPagingSize = config["ASClient.PagingSize"]?.ToInt32()
                                  ?? 1000;
+            ASClientConcurrentPagingCount = config["ASClient.ConcurrentPagingCount"]?.ToInt32()
+                                               ?? 10;
             ASClientUseUltimateKey = config["ASClient.UseUltimateKey"]?.ToBoolean()
                                      ?? true;
         }

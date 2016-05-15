@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Contests.Bop.Participants.Magik.Academic;
 using Microsoft.Contests.Bop.Participants.Magik.Analysis;
 
 namespace Microsoft.Contests.Bop.Participants.Magik.MagikServer
@@ -25,13 +26,20 @@ namespace Microsoft.Contests.Bop.Participants.Magik.MagikServer
         /// </summary>
         public const int LargeAnalyzerNodesThreshold = 110000;
 
+        public static AcademicSearchClient CreateSearchClient()
+        {
+            var client = GlobalServices.CreateASClient();
+            client.PagingSize = Configurations.ASClientPagingSize;
+            client.ConcurrentPagingCount = Configurations.ASClientConcurrentPagingCount;
+            return client;
+        }
+
         /// <summary>
         /// 在此实现中，直接构造一个 <see cref="Analyzer"/> 并返回。
         /// </summary>
         public static Analyzer GetAnalyzer()
         {
-            var client = GlobalServices.CreateASClient();
-            var analyzer = new Analyzer(client);
+            var analyzer = new Analyzer(CreateSearchClient());
             return analyzer;
         }
 
