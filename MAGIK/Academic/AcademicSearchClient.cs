@@ -177,56 +177,45 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
             return result;
         }
 
+        ///// <summary>
+        ///// 异步计算查询表达式，并进行学术文献的检索。启用自动分页。
+        ///// </summary>
+        //public Task EvaluateAsync(string expression, int count, Func<EvaluationResult, Task> callback)
+        //{
+        //    return EvaluateAsync(expression, count, null, null, ConcurrentPagingMode.Optimistic, callback);
+        //}
+
         /// <summary>
         /// 异步计算查询表达式，并进行学术文献的检索。启用自动分页。
         /// </summary>
-        public ParitionedPromise<EvaluationResult> EvaluateAsync0(string expression, int count)
+        public Task EvaluateAsync(string expression, int count, ConcurrentPagingMode pagingMode, Func<EvaluationResult, Task> callback)
         {
-            return EvaluateAsync(expression, count, null, null, ConcurrentPagingMode.Optimistic);
+            return EvaluateAsync(expression, count, null, null, pagingMode, callback);
         }
 
         /// <summary>
         /// 异步计算查询表达式，并进行学术文献的检索。启用自动分页。
         /// </summary>
-        public ParitionedPromise<EvaluationResult> EvaluateAsync(string expression, int count, ConcurrentPagingMode pagingMode)
+        public Task EvaluateAsync(string expression, int count, string orderBy,
+            string attributes, Func<EvaluationResult, Task> callback)
         {
-            return EvaluateAsync(expression, count, null, null, pagingMode);
+            return EvaluateAsync(expression, count, orderBy, attributes, ConcurrentPagingMode.Optimistic, callback);
         }
 
         /// <summary>
         /// 异步计算查询表达式，并进行学术文献的检索。启用自动分页。
         /// </summary>
-        public ParitionedPromise<EvaluationResult> EvaluateAsync(string expression, int count, string orderBy,
-            string attributes)
+        public async Task EvaluateAsync(string expression, int count, string orderBy, string attributes,
+            ConcurrentPagingMode pagingMode, Func<EvaluationResult, Task> callback)
         {
-            return EvaluateAsync(expression, count, orderBy, attributes, ConcurrentPagingMode.Optimistic);
-        }
-
-        /// <summary>
-        /// 异步计算查询表达式，并进行学术文献的检索。启用自动分页。
-        /// </summary>
-        public ParitionedPromise<EvaluationResult> EvaluateAsync(string expression, int count, string orderBy,
-            string attributes, ConcurrentPagingMode pagingMode)
-        {
-            var promise = new ParitionedPromise<EvaluationResult>();
-            promise.SetProducerTask(EvaluateAsync(expression, count, orderBy, attributes, pagingMode, promise));
-            return promise;
-        }
-
-        /// <summary>
-        /// 异步计算查询表达式，并进行学术文献的检索。启用自动分页。
-        /// </summary>
-        private async Task EvaluateAsync(string expression, int count, string orderBy, string attributes,
-            ConcurrentPagingMode pagingMode, ParitionedPromise<EvaluationResult> promise)
-        {
+            if (callback == null) throw new ArgumentNullException(nameof(callback));
             if (pagingMode != ConcurrentPagingMode.Optimistic && pagingMode != ConcurrentPagingMode.Pessimistic)
                 throw new ArgumentOutOfRangeException(nameof(pagingMode));
-            if (promise == null) throw new ArgumentNullException(nameof(promise));
             // 处理明显小于一页的情况。
             if (count < PagingSize)
             {
                 var er = await EvaluateAsync(expression, count, 0, orderBy, attributes);
-                if (er.Entities.Count > 0) promise.DeclarePartitionFinished(er);
+                if (er.Entities.Count > 0) await callback(er);
                 return;
             }
             Logger.AcademicSearch.Enter(this, $"{expression}, [1,{count}] Paged");
@@ -256,7 +245,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
                             if (t.Result.Entities.Count > 0)
                             {
                                 results += t.Result.Entities.Count;
-                                promise.DeclarePartitionFinished(t.Result);
+                                callback(t.Result);
                             }
                             else
                             {

@@ -86,12 +86,12 @@ namespace UnitTestProject1
         {
             var client = GlobalServices.CreateASClient();
             var result = new List<EvaluationResult>();
-            client.EvaluateAsync("Composite(AA.AfN=='microsoft')", 5000, null, "Id")
-                .PartitionContinueWith(er =>
+            client.EvaluateAsync("Composite(AA.AfN=='microsoft')", 5000, null, "Id",
+                er =>
                 {
                     result.Add(er);
                     return Task.CompletedTask;
-                }).WhenCompleted().Wait();
+                }).Wait();
             Assert.IsTrue(result.Any());
             Trace.WriteLine($"{result.Count} Entities.");
             foreach (var entity in result)

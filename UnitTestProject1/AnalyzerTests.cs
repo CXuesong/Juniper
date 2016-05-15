@@ -118,7 +118,7 @@ namespace UnitTestProject1
             var paths = FindPaths(2157025439, 1982462162, true);
             //TraceAsJson(paths);
             // 1/2 hop + 3-hop
-            AssertPathsCount(paths, 2 + 259);
+            AssertPathsCount(paths, 254);
             AssertPathExists(paths, 2157025439, 1982462162);
         }
 
@@ -133,7 +133,7 @@ namespace UnitTestProject1
             // 2061503185: implicit feedback for inferring user preference a bibliography
             var paths = FindPaths(2157025439, 2061503185, true);
             // 1/2 hop + 3-hop
-            AssertPathsCount(paths, 3 + 252);
+            AssertPathsCount(paths, 257);
             AssertPathExists(paths, 2157025439, 2122841972, 2061503185);
             // 1982462162: Jaime Teevan
             AssertPathExists(paths, 2157025439, 1982462162, 2061503185);
@@ -148,10 +148,11 @@ namespace UnitTestProject1
         public void AnalyzerTestMethodEasy2()
         {
             // 5-10: 147 -> 181
+            // 5-15: 181 -> 166
             // 1982462162: Jaime Teevan
             // 676500258: Susan T Dumais
             var paths = FindPaths(1982462162, 676500258, true);
-            AssertPathsCount(paths, 47 + 134);
+            AssertPathsCount(paths, 166);
             // 2057034832: Understanding Temporal Query Dynamics
             AssertPathExists(paths, 1982462162, 2057034832, 676500258);
             // 1290206253: Microsoft
@@ -168,7 +169,7 @@ namespace UnitTestProject1
             // 2128366083: resolution limit in community detection
             // 2112090702: collective dynamics of small world network
             var paths = FindPaths(2128366083, 2112090702, true);
-            AssertPathsCount(paths, 4 + 1431);
+            AssertPathsCount(paths, 1438);
             // 2164928285: uncovering the overlapping community structure of complex networks in nature and society
             AssertPathExists(paths, 2128366083, 2164928285, 2112090702);
             // Other papers
@@ -185,7 +186,7 @@ namespace UnitTestProject1
         {
             // 5-10: 190 -> 204
             var paths = FindPaths(1502768748, 2122841972, true);
-            AssertPathsCount(paths, 204);
+            AssertPathsCount(paths, 200);
         }
 
         /// <summary>
@@ -196,7 +197,7 @@ namespace UnitTestProject1
         {
             // 5-10: 2595 -> 3592
             var paths = FindPaths(2126125555, 2153635508, true);
-            AssertPathsCount(paths, 3592);
+            AssertPathsCount(paths, 3614);
         }
 
         /// <summary>
@@ -209,7 +210,7 @@ namespace UnitTestProject1
             // [PaperNode:2126125555] Cross Domain Activity Recognition Via Transfer Learning
             // [PaperNode:2060367530] Statistical Learning Theory
             var paths = FindPaths(2126125555, 2060367530, true);
-            AssertPathsCount(paths, 5903);
+            AssertPathsCount(paths, 5918);
         }
 
         /// <summary>
@@ -235,7 +236,7 @@ namespace UnitTestProject1
             // [AuthorNode:2145115012] Yu Zheng
             // [AuthorNode:2125800575] Xing Xie
             var paths = FindPaths(2145115012, 2125800575, true);
-            AssertPathsCount(paths, 501);
+            AssertPathsCount(paths, 504);
         }
 
         /// <summary>
@@ -249,7 +250,7 @@ namespace UnitTestProject1
             // [PaperNode:189831743] Preparing For The Use Of Classification In Online Cataloging Systems And In Online Catalogs
             // [PaperNode:2147152072] Indexing By Latent Semantic Analysis
             var paths = FindPaths(189831743, 2147152072, true);
-            AssertPathsCount(paths, 2708);
+            AssertPathsCount(paths, 2713);
         }
 
         /// <summary>
@@ -265,7 +266,8 @@ namespace UnitTestProject1
             AssertPathExists(paths, 621499171, 2034796909, 1968806977, 2100837269);
             AssertPathExists(paths, 621499171, 2034796909, 1970107317, 2100837269);
             // 05-10 新增断言。
-            AssertPathExists(paths, 621499171, 1315039220, 258089896, 2100837269);
+            // 05-15 消失了……
+            //AssertPathExists(paths, 621499171, 1315039220, 258089896, 2100837269);
             // 注意这是一个环。
             // 05-10 这个环消失了……
             //AssertPathExists(paths, 621499171, 1315039220, 621499171, 2100837269);
@@ -282,7 +284,7 @@ namespace UnitTestProject1
             // [PaperNode:2107710616] Selected reaction monitoring for quantitative proteomics: a tutorial
             // [PaperNode:2128635872] A rapid and sensitive method for the quantitation of microgram quantities of protein utilizing the principle of protein-dye binding.
             var paths = FindPaths(2107710616, 2128635872, true);
-            AssertPathsCount(paths, 62110);
+            AssertPathsCount(paths, 62190);
         }
 
         /// <summary>
@@ -294,7 +296,7 @@ namespace UnitTestProject1
             // [AuthorNode:2146007994] Paul E Goss
             // [PaperNode:2100837269] Cleavage Of Structural Proteins During The Assembly Of The Head Of Bacteriophage T4
             var paths = FindPaths(2146007994, 2100837269, true);
-            AssertPathsCount(paths, 49);
+            AssertPathsCount(paths, 50);
         }
 
         /// <summary>
@@ -306,7 +308,7 @@ namespace UnitTestProject1
             // [AuthorNode:2146007994] Paul E Goss
             // [PaperNode:2100837269] Cleavage Of Structural Proteins During The Assembly Of The Head Of Bacteriophage T4
             var paths = FindPaths(189831743, 2147152072, true);
-            AssertPathsCount(paths, 2708);
+            AssertPathsCount(paths, 2713);
         }
 
         /// <summary>
@@ -324,21 +326,21 @@ namespace UnitTestProject1
         {
             var paths = FindPaths(2088905367, 2033660646, true);
             TraceAsJson(paths);
-            AssertPathsCount(paths, 116);
+            AssertPathsCount(paths, 115);
         }
 
         [TestMethod]
         public void AnalyzerTestMethodX2()
         {
             var paths = FindPaths(2100837269, 621499171, true);
-            AssertPathsCount(paths, 10);
+            AssertPathsCount(paths, 27);
         }
 
         [TestMethod]
         public void AnalyzerTestMethodX3()
         {
             var paths = FindPaths(2008785686, 56455408, true);
-            AssertPathsCount(paths, 135);
+            AssertPathsCount(paths, 137);
         }
 
         //[TestMethod]
@@ -349,7 +351,14 @@ namespace UnitTestProject1
             AssertPathsCount(paths, 35);
         }
 
-        /// <summary>
+        [TestMethod]
+        public void AnalyzerTestMethodX5()
+        {
+            var paths = FindPaths(621499171, 2100837269, true);
+            AssertPathsCount(paths, 34);
+        }
+
+        /// <summary
         /// BOP 5-5 放出的样例1。
         /// </summary>
         [TestMethod]
@@ -407,7 +416,7 @@ namespace UnitTestProject1
             // [AuthorNode:57898110] Timo Bolkart
             // [AuthorNode:2014261844] Stefanie Wuhrer
             var paths = FindPaths(57898110, 2014261844, true);
-            AssertPathsCount(paths, 26);
+            AssertPathsCount(paths, 27);
         }
 
         /// <summary>

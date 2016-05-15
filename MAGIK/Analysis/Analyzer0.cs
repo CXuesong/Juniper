@@ -159,8 +159,8 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                     // 假定 Partition 返回的是 IList / ICollection
                     var idc = (ICollection<long>)ids;
                     return SearchClient.EvaluateAsync(SEB.EntityIdIn(idc),
-                        SEB.MaxChainedIdCount,ConcurrentPagingMode.Pessimistic)
-                        .PartitionContinueWith(page =>
+                        SEB.MaxChainedIdCount, ConcurrentPagingMode.Pessimistic,
+                        page =>
                         {
                             if (page.Entities.Count < idc.Count)
                                 Logger.Magik.Warn(this, "批量查询实体 Id 时，返回结果数量不足。期望：{0}，实际：{1}。", idc.Count,
@@ -168,7 +168,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                             foreach (var entity in page.Entities)
                                 ExplorePaperUnsafe(entity);
                             return Task.CompletedTask;
-                        }).WhenCompleted();
+                        });
                 }));
             foreach (var n in nodesToFetch)
             {
@@ -208,12 +208,12 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                     var idc = (ICollection<long>) ids;
                     return SearchClient.EvaluateAsync(SEB.And(SEB.EntityIdIn(idc), constraint),
                         SEB.MaxChainedIdCount,
-                        ConcurrentPagingMode.Optimistic)
-                        .PartitionContinueWith(async page =>
+                        ConcurrentPagingMode.Optimistic,
+                        async page =>
                         {
                             foreach (var entity in page.Entities)
                                 await ExplorePaperAsync(entity);
-                        }).WhenCompleted();
+                        });
                 }));
             WAIT_FOR_EXPLORATIONS:
             ;
@@ -243,7 +243,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                     //var explorationResult = 
                     await SearchClient.EvaluateAsync(SEB.AuthorIdIn(idc),
                         Assumptions.AuthorMaxPapers*idc.Count,
-                        ConcurrentPagingMode.Optimistic).PartitionContinueWith(async page =>
+                        ConcurrentPagingMode.Optimistic, async page =>
                         {
                             foreach (var et in page.Entities)
                             {
@@ -266,7 +266,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                                 await localExploreTask;
                             }
                             //return page.Entities.Count;
-                        }).WhenCompleted();
+                        });
                     // 实际情况应当是， SUM(er.Entities.Count) >> idc.Count
                     //var pageSubtotal = explorationResult.Sum();
                     //if (pageSubtotal < idc.Count)
@@ -558,27 +558,27 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                     var expr = SEB.ReferenceIdContains(paper2.Id);
                     if (attributeConstraint != null)
                         expr = SEB.And(expr, attributeConstraint);
-                    await SearchClient.EvaluateAsync(expr, maxPapers.Value, strategy)
-                        .PartitionContinueWith(async page =>
+                    await SearchClient.EvaluateAsync(expr, maxPapers.Value, strategy, async page =>
+                    {
+                        await Task.WhenAll(page.Entities.Select(entity =>
                         {
-                            await Task.WhenAll(page.Entities.Select(entity =>
-                            {
-                                RegisterNode(entity);
-                                return ExplorePaperAsync(entity);
-                            }));
-                        }).WhenCompleted();
+                            RegisterNode(entity);
+                            return ExplorePaperAsync(entity);
+                        }));
+                    });
                 };
                 if (papers1 != null)
                 {
                     // Id1 -> Id3 -> Id2
                     //Trace.WriteLine("Fetch From Papers1 " + papers1.Count);
                     var citations = CitationCount(paper2);
-                    if (citations < papers1References.Length)
+                    var papersToFetch = papers1References.Count(id =>
+                        GetStatus(id).GetFetchingStatus(NodeStatus.PaperFetching) == FetchingStatus.Unfetched);
+                    if (citations < papersToFetch)
                     {
                         // 从 Id2 方向向左探索 Id1 可能会好一些。
                         // 注意到 Left to Right 一次只能探索约 100 篇
                         // Right to Left 一次可以探索约 1000 篇，就是有点儿慢。
-                        File.AppendAllText("D:\\aaa.log", $"Alt\t{_Node1} -- {_Node2}\n");
                         await FetchCitationsToPaper2WithAttributes(null, ConcurrentPagingMode.Pessimistic);
                     }
                     else
@@ -649,13 +649,12 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
                         return;
                     await SearchClient.EvaluateAsync(SEB.And(
                         attributeConstraint, SEB.AuthorIdContains(node2.Id)),
-                        Assumptions.AuthorMaxPapers, ConcurrentPagingMode.Optimistic)
-                        .PartitionContinueWith(page =>
+                        Assumptions.AuthorMaxPapers, ConcurrentPagingMode.Optimistic, page =>
                             Task.WhenAll(page.Entities.Select(async entity =>
                             {
                                 RegisterNode(entity);
                                 await ExplorePaperAsync(entity);
-                            }))).WhenCompleted();
+                            })));
                 };
                 if (papers1 != null)
                 {
