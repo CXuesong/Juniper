@@ -50,11 +50,19 @@ namespace UnitTestProject1
             var paths2 = TestUtility.AwaitSync(a.FindPathsAsync(id1, id2));
             sw.Stop();
             Trace.WriteLine("Cached: " + sw.Elapsed);
-            TraceAsJson(paths2);
-            Assert.AreEqual(paths.Count, paths2.Count);
-            Assert.IsTrue(paths.SequenceEqual(paths2, ArrayEqualityComparer<KgNode>.Default));
-            Trace.WriteLine(a.DumpStatistics());
-            Trace.WriteLine(asc.DumpStatistics());
+            try
+            {
+                Assert.AreEqual(paths.Count, paths2.Count);
+                Assert.IsTrue(paths.SequenceEqual(paths2, ArrayEqualityComparer<KgNode>.Default));
+                Trace.WriteLine(a.DumpStatistics());
+                Trace.WriteLine(asc.DumpStatistics());
+            }
+            catch (Exception)
+            {
+                Trace.WriteLine("========================");
+                TraceAsJson(paths2);
+                throw;
+            }
 #endif
             return paths;
         }
@@ -271,7 +279,7 @@ namespace UnitTestProject1
             // 注意这是一个环。
             // 05-10 这个环消失了……
             //AssertPathExists(paths, 621499171, 1315039220, 621499171, 2100837269);
-            AssertPathsCount(paths, 19);
+            AssertPathsCount(paths, 34);
         }
 
         /// <summary>
@@ -318,7 +326,7 @@ namespace UnitTestProject1
         public void AnalyzerTestMethod595()
         {
             var paths = FindPaths(2018949714, 2105005017, true);
-            AssertPathsCount(paths, 595);
+            AssertPathsCount(paths, 500);
         }
 
         [TestMethod]
@@ -358,7 +366,7 @@ namespace UnitTestProject1
             AssertPathsCount(paths, 34);
         }
 
-        /// <summary
+        /// <summary>
         /// BOP 5-5 放出的样例1。
         /// </summary>
         [TestMethod]

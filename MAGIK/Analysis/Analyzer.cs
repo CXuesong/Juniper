@@ -201,19 +201,21 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Analysis
             /// 论文联系的探索情况。
             /// </summary>
             public static readonly FetchingDomainKey PaperFetching =
-                new TokenFetchingDomainKey("PaperExploration");
+                new TokenFetchingDomainKey("PaperFetching");
 
-            ///// <summary>
-            ///// 作者所属机构的探索情况。
-            ///// </summary>
-            //public static readonly FetchingDomainKey AuthorAffiliationsFetching =
-            //    new TokenFetchingDomainKey("AuthorAffiliationsFetching");
+            /// <summary>
+            /// 论文被引用论文的整体探索情况。
+            /// 注意，此 Key 表示被引用的不加限定的整体探索情况。
+            /// 对于有限定的情况，请参阅 InterceptionFetchingDomainKey 。
+            /// </summary>
+            public static readonly FetchingDomainKey PaperCitationsFetching =
+                new TokenFetchingDomainKey("PaperCitationsFetching");
 
             /// <summary>
             /// 作者所写的所有论文的探索情况。
             /// </summary>
             public static readonly FetchingDomainKey AuthorPapersFetching =
-                new TokenFetchingDomainKey("AuthorPapersExploration");
+                new TokenFetchingDomainKey("AuthorPapersFetching");
 
             // 一个节点被探索，当且仅当在向服务器提交查询，并能够获得此节点的完全信息之后。
             // 在 DEBUG 模式下，完全信息包括节点的名称和此节点的邻节点（保存在 Graph 中，
