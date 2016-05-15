@@ -247,7 +247,7 @@ namespace Microsoft.Contests.Bop.Participants.Magik.Academic
                                 results += t.Result.Entities.Count;
                                 callback(t.Result);
                             }
-                            else
+                            else if (t.Result.Entities.Count < PagingSize)
                             {
                                 // 当前 session 已经包含最后一页了。
                                 noMoreResults = true;
