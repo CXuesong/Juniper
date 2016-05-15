@@ -56,7 +56,7 @@
     <Compile Include="Academic\Contract\CalcHistogramResult.cs" />
     <Compile Include="Academic\SearchExpressionBuilder.cs" />
     <Compile Include="Analysis\Analyzer.cs" />
-    <Compile Include="Academic\Analyzer0.cs" />
+    <Compile Include="Analysis\Analyzer0.cs" />
     <Compile Include="Analysis\Analyzer12.cs" />
     <Compile Include="Analysis\Analyzer3.cs" />
     <Compile Include="Analysis\AnalyzerBase.cs" />
